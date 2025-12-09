@@ -28,7 +28,7 @@ def main():
 
     # KG
     kg_cfg = KGClientConfig(
-        ttl_path="../data/knowledge_graph.ttl",
+        ttl_path="../data/knowledgeGraph/backup/knowledge_graph.ttl",
     )
     kg_client = KGClient(kg_cfg)
 
