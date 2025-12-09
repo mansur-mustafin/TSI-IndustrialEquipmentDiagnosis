@@ -153,6 +153,13 @@ def main():
             if st.button("Generate explanation (MLE)", key="mle_ollama"):
                 with st.spinner("Asking..."):
                     explanation = call_ollama(prompt)
+                if not explanation:
+                    st.error("Could not reach Ollama. Please start the Ollama server.")
+                    st.code(
+                        "sudo docker start ollama14",
+                        language="bash",
+                    )
+
                 st.session_state.mle_explanation = explanation
 
             if st.session_state.mle_explanation:
@@ -180,6 +187,14 @@ def main():
             if st.button("Generate explanation (EM)", key="em_ollama"):
                 with st.spinner("Asking..."):
                     explanation = call_ollama(prompt)
+
+                if not explanation:
+                    st.error("Could not reach Ollama. Please start the Ollama server.")
+                    st.code(
+                        "sudo docker start ollama14",
+                        language="bash",
+                    )
+
                 st.session_state.em_explanation = explanation
 
             if st.session_state.em_explanation:

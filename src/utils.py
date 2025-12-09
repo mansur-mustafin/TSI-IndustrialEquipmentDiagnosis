@@ -31,4 +31,4 @@ def call_ollama(prompt: str) -> str:
         data = resp.json()
         return data.get("response", "").strip()
     except requests.exceptions.RequestException as e:
-        return f"Error talking to Ollama: {e}"
+        return ""

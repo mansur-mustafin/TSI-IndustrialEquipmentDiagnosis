@@ -1,0 +1,103 @@
+@prefix ex: <http://example.org/cnc#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:P1 a ex:Procedure ;
+    ex:effortHours "6.0"^^xsd:float ;
+    ex:hasId "P1" ;
+    ex:hasName "ReplaceBearing" ;
+    ex:mitigatesCause ex:BearingWearHigh ;
+    ex:riskRating 3 ;
+    ex:sparePartsCostEur "600.0"^^xsd:float ;
+    ex:targetsComponent ex:Bearing .
+
+ex:P2 a ex:Procedure ;
+    ex:effortHours "2.0"^^xsd:float ;
+    ex:hasId "P2" ;
+    ex:hasName "RepairFan" ;
+    ex:mitigatesCause ex:FanFault ;
+    ex:riskRating 2 ;
+    ex:sparePartsCostEur "150.0"^^xsd:float ;
+    ex:targetsComponent ex:Fan .
+
+ex:P3 a ex:Procedure ;
+    ex:effortHours "1.5"^^xsd:float ;
+    ex:hasId "P3" ;
+    ex:hasName "CleanFilter" ;
+    ex:mitigatesCause ex:CloggedFilter ;
+    ex:riskRating 1 ;
+    ex:sparePartsCostEur "50.0"^^xsd:float ;
+    ex:targetsComponent ex:Filter .
+
+ex:P4 a ex:Procedure ;
+    ex:effortHours "2.0"^^xsd:float ;
+    ex:hasId "P4" ;
+    ex:hasName "FlushCoolant" ;
+    ex:mitigatesCause ex:LowCoolingEfficiency ;
+    ex:riskRating 2 ;
+    ex:sparePartsCostEur "90.0"^^xsd:float ;
+    ex:targetsComponent ex:CoolingSystem .
+
+ex:BearingWearHigh a ex:Cause ;
+    ex:affectsComponent ex:Bearing ;
+    ex:causesSymptom ex:HighVibration ;
+    ex:hasId "K1" ;
+    ex:hasName "BearingWearHigh" .
+
+ex:CloggedFilter a ex:Cause ;
+    ex:affectsComponent ex:Filter ;
+    ex:causesSymptom ex:LowCoolantFlow ;
+    ex:hasId "K3" ;
+    ex:hasName "CloggedFilter" .
+
+ex:FanFault a ex:Cause ;
+    ex:affectsComponent ex:Fan ;
+    ex:causesSymptom ex:HighSpindleTemp ;
+    ex:hasId "K2" ;
+    ex:hasName "FanFault" .
+
+ex:HighVibration a ex:Symptom ;
+    ex:hasId "S1" ;
+    ex:hasName "HighVibration" .
+
+ex:LowCoolantFlow a ex:Symptom ;
+    ex:hasId "S3" ;
+    ex:hasName "LowCoolantFlow" .
+
+ex:LowCoolingEfficiency a ex:Cause ;
+    ex:affectsComponent ex:CoolingSystem ;
+    ex:causesSymptom ex:HighSpindleTemp ;
+    ex:hasId "K4" ;
+    ex:hasName "LowCoolingEfficiency" .
+
+ex:Spindle a ex:Component ;
+    ex:function "Rotate tool" ;
+    ex:hasId "C1" ;
+    ex:hasName "Spindle" .
+
+ex:Bearing a ex:Component ;
+    ex:function "Support rotation" ;
+    ex:hasId "C5" ;
+    ex:hasName "Bearing" ;
+    ex:partOf ex:Spindle .
+
+ex:Fan a ex:Component ;
+    ex:function "Air flow" ;
+    ex:hasId "C3" ;
+    ex:hasName "Fan" ;
+    ex:partOf ex:CoolingSystem .
+
+ex:Filter a ex:Component ;
+    ex:function "Filter coolant/air" ;
+    ex:hasId "C4" ;
+    ex:hasName "Filter" ;
+    ex:partOf ex:CoolingSystem .
+
+ex:HighSpindleTemp a ex:Symptom ;
+    ex:hasId "S2" ;
+    ex:hasName "HighSpindleTemp" .
+
+ex:CoolingSystem a ex:Component ;
+    ex:function "Dissipate heat" ;
+    ex:hasId "C2" ;
+    ex:hasName "CoolingSystem" .
+
