@@ -1,0 +1,14 @@
+data:
+  telemetry_path: "../data/raw/telemetry.csv"
+  labels_path: "../data/processed/labels-3.csv"
+  machine_filter: null   # or "M-A" to filter a specific machine
+
+thresholds:
+  vib_hi: 0.9
+  temp_hi: 0.9
+  flow_lo: 0.1
+
+em:
+  em_max_iter: 100
+  em_atol: 1.0e-4
+  em_seed: 42
