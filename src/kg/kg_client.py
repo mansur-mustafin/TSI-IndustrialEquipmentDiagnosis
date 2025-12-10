@@ -1,12 +1,8 @@
-# kg_client.py
-from __future__ import annotations
-
-from dataclasses import dataclass
-from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any
 
 from rdflib import Graph, Namespace
 
+from kg.kg_client_config import KGClientConfig
 
 EX = Namespace("http://example.org/cnc#")
 
@@ -18,48 +14,27 @@ BN_TO_CAUSE_NAME = {
 }
 
 
-@dataclass
-class KGClientConfig:
-    ttl_path: str
-
-
 class KGClient:
-    """
-    Small client to query the Knowledge Graph built with rdflib.
-
-    Main methods you will use from the BN side:
-      - get_procedures_for_bn_cause(bn_cause)
-      - get_cause_context(bn_cause)
-    """
 
     def __init__(self, cfg: KGClientConfig):
-        self.cfg = cfg
         self.graph = Graph()
         self.graph.parse(cfg.ttl_path, format="turtle")
         self.graph.bind("ex", EX)
 
     def _bn_cause_to_kg_name(self, bn_cause: str) -> str:
-        """
-        Map BN cause variable name to KG cause name used in IRI.
-          'fan_fault' -> 'FanFault'
-        """
         try:
             return BN_TO_CAUSE_NAME[bn_cause]
         except KeyError:
             raise ValueError(f"Unknown BN cause name: {bn_cause!r}")
 
-    def get_procedures_for_bn_cause(self, bn_cause: str) -> List[Dict[str, Any]]:
+    def get_procedures_for_cause(self, bn_cause: str) -> list[dict[str, Any]]:
         """
-        Given a BN cause variable (e.g. 'fan_fault'),
-        return all procedures that mitigate that cause.
+        Given a BN cause variable returns all procedures that mitigate that cause.
 
-        Output: list of dicts with keys:
-          - proc_uri
-          - proc_name
-          - effort_h
-          - spare_parts_cost_eur
-          - risk_rating
-          - target_component
+        :param bn_cause: A BN cause variable name (e.g. 'fan_fault')
+        :type bn_cause: str
+        :return: list of procedures
+        :rtype: list[dict[str, Any]]
         """
         cause_local = self._bn_cause_to_kg_name(bn_cause)
 
@@ -92,15 +67,14 @@ class KGClient:
             })
         return procedures
 
-    def get_cause_context(self, bn_cause: str) -> Dict[str, Any]:
+    def get_cause_context(self, bn_cause: str) -> dict[str, Any]:
         """
-        Given BN cause name, return:
-          - cause_name  (KG name)
-          - components: list of component names affected by this cause
-          - symptoms:   list of symptom names this cause can produce
-
-        This is useful for explanations like:
-          "FanFault affects component Fan and causes symptom HighSpindleTemp."
+        Given a BN cause variable, get its context:
+        
+        :param bn_cause: A BN cause variable name (e.g. 'fan_fault')
+        :type bn_cause: str
+        :return: Dictionary with cause context
+        :rtype: dict[str, Any]
         """
         cause_local = self._bn_cause_to_kg_name(bn_cause)
 
@@ -136,32 +110,31 @@ class KGClient:
             "symptoms": sorted(symptoms),
         }
 
-    def get_procedure_explanation(self, proc_id: str) -> Dict[str, Any]:
+    def get_procedure_explanation(self, proc_id: str) -> dict[str, Any]:
         """
-        Given a procedure ID (e.g. 'P1'), get:
-          - procedure name
-          - target component
-          - mitigated cause
-          - cause's symptoms
+        Given a procedure ID, get its explanation.
 
-        Useful when you want to generate text like:
-          "ReplaceBearing targets Bearing and mitigates BearingWearHigh,
-           which is associated with symptoms [HighVibration]."
+        :param proc_id: Procedure ID (e.g. 'P1')
+        :type proc_id: str
+        :return: Dictionary with procedure explanation
+        :rtype: dict[str, Any]
         """
         query = f"""
         PREFIX ex: <http://example.org/cnc#>
-        SELECT ?proc_name ?comp_name ?cause_name ?sym_name
+        SELECT ?proc_name ?comp_name ?cause_name ?sym_name ?effort ?cost
         WHERE {{
-          ex:{proc_id} a ex:Procedure ;
+        ex:{proc_id} a ex:Procedure ;
                         ex:hasName ?proc_name ;
                         ex:targetsComponent ?comp ;
-                        ex:mitigatesCause ?cause .
-          ?comp ex:hasName ?comp_name .
-          ?cause ex:hasName ?cause_name .
-          OPTIONAL {{
+                        ex:mitigatesCause ?cause ;
+                        ex:effortHours ?effort ;
+                        ex:sparePartsCostEur ?cost .
+        ?comp ex:hasName ?comp_name .
+        ?cause ex:hasName ?cause_name .
+        OPTIONAL {{
             ?cause ex:causesSymptom ?sym .
             ?sym ex:hasName ?sym_name .
-          }}
+        }}
         }}
         """
 
@@ -170,12 +143,16 @@ class KGClient:
         proc_name = None
         comp_name = None
         cause_name = None
+        effort_h = None
+        parts_cost = None
         symptoms = set()
 
         for row in results:
             proc_name = str(row.proc_name)
             comp_name = str(row.comp_name)
             cause_name = str(row.cause_name)
+            effort_h = float(row.effort)
+            parts_cost = float(row.cost)
             if row.sym_name:
                 symptoms.add(str(row.sym_name))
 
@@ -187,5 +164,7 @@ class KGClient:
             "proc_name": proc_name,
             "target_component": comp_name,
             "cause_name": cause_name,
+            "effort_h": effort_h,
+            "spare_parts_cost_eur": parts_cost,
             "symptoms": sorted(symptoms),
         }

@@ -1,11 +1,54 @@
+# TODO(mm): update json, ollama, and MLE text 
 import json
 from pathlib import Path
+from typing import Any
 
 import streamlit as st
 
-from bn.diagnose_bn_config import DiagnoseBNConfig
 from bn.diagnose_bn import DiagnoseBN
+from bn.diagnose_bn_config import DiagnoseBNConfig
+from decision.action_decision import ActionDecision
+from decision.decision_config import DecisionConfig
+from kg.kg_client import KGClient
+from kg.kg_client_config import KGClientConfig
 from utils import round_dict, call_ollama
+
+
+def build_text_explanation(evidence: dict[str, Any], decision: dict[str, Any], kg_client: KGClient) -> str:
+    if decision["best_action"]["action"] == "schedule":
+        proc_id = decision["best_action"]["proc_id"]
+        procedure = kg_client.get_procedure_explanation(proc_id)
+        print("Scheduled procedure details:", json.dumps(procedure, indent=2))
+
+        cause = decision["best_action"]["cause"]
+        cause_context = kg_client.get_cause_context(cause)
+        print("Cause context:", json.dumps(cause_context, indent=2))
+
+        SYM_LABELS = {
+            "high_vibration": "Vibration=high",
+            "low_coolant_flow": "CoolantFlow=low",
+            "high_spindle_temp": "SpindleTemp=high",
+        }
+        active_syms = [SYM_LABELS.get(name, name) for name, val in evidence.items() if val == 1]
+
+        if active_syms:
+            because_part = " and ".join(active_syms)
+        else:
+            because_part = "no active symptoms"
+
+        proc_name = procedure["proc_name"]
+        effort_h = procedure["effort_h"]
+        parts_cost = procedure["spare_parts_cost_eur"]
+
+        explanation = (
+            f"Because {because_part}, the system estimates Overheat="
+            f"{decision['overheat_prob']:.2f}. Likely cause is {cause_context['cause_name']}. "
+            f"Recommended action: {proc_name} ({effort_h:.0f}h, {parts_cost:.0f}€)."
+        )
+    else:
+        return "TODO: explanation for 'continue' action."
+
+    return explanation
 
 
 def build_prompt(method: str, result: dict, raw_data: dict) -> str:
@@ -19,12 +62,23 @@ Explain in clear language what the most likely issues are.
 
 
 def get_trained_model():
-    config_path = Path(__file__).resolve().parent / ".." / "configs" / "bn.yaml"
-    config = DiagnoseBNConfig.from_yaml(str(config_path))
+    config = DiagnoseBNConfig.from_yaml("./../configs/bn.yaml")
     model = DiagnoseBN(config)
     model.load_data()
     model.train()
     return model
+
+
+def get_kg_client():
+    kg_cfg = KGClientConfig.from_yaml("./../configs/kg.yaml")
+    kg_client = KGClient(kg_cfg)
+    return kg_client
+
+
+def get_action_decision(kg_client: KGClient):
+    decision_cfg = DecisionConfig.from_yaml("./../configs/decision.yaml")
+    action_decision = ActionDecision(kg_client, decision_cfg)
+    return action_decision
 
 
 def main():
@@ -35,12 +89,20 @@ def main():
         st.session_state.mle_result = None
     if "em_result" not in st.session_state:
         st.session_state.em_result = None
+    if "em_result_raw" not in st.session_state:
+        st.session_state.em_result_raw = None
     if "mle_explanation" not in st.session_state:
         st.session_state.mle_explanation = ""
     if "em_explanation" not in st.session_state:
         st.session_state.em_explanation = ""
+    if "em_text_explanation" not in st.session_state:
+        st.session_state.em_text_explanation = ""
     if "model" not in st.session_state:
         st.session_state.model = None
+    if "kg_client" not in st.session_state:
+        st.session_state.kg_client = None
+    if "em_decision" not in st.session_state:
+        st.session_state.em_decision = None
 
     st.title("Bayesian Network Diagnosis")
     st.write(
@@ -65,7 +127,6 @@ def main():
             step=1.0,
             format="%.1f",
         )
-
     with col2:
         ambient_temp = st.number_input(
             "Ambient temperature (°C)",
@@ -107,13 +168,18 @@ def main():
     # --- Run diagnosis
     if st.button("Run diagnosis"):
         if st.session_state.model is None:
-            model = get_trained_model()
-            st.session_state.model = model
+            st.session_state.model = get_trained_model()
         model = st.session_state.model
+
+        if st.session_state.kg_client is None:
+            st.session_state.kg_client = get_kg_client()
+        kg_client = st.session_state.kg_client
 
         # reset explanations when running again
         st.session_state.mle_explanation = ""
         st.session_state.em_explanation = ""
+        st.session_state.em_text_explanation = ""
+        st.session_state.em_decision = None
 
         if method in ("mle", "both"):
             result_mle = model.diagnose(raw_data, method="mle")
@@ -123,9 +189,22 @@ def main():
 
         if method in ("em", "both"):
             result_em = model.diagnose(raw_data, method="em")
+            st.session_state.em_result_raw = result_em
             st.session_state.em_result = round_dict(result_em, ndigits=4)
+
+            action_decision = get_action_decision(kg_client)
+            decision = action_decision.decide(result_em)
+            st.session_state.em_decision = decision
+
+            em_text_expl = build_text_explanation(
+                result_em["evidence"], decision, kg_client
+            )
+            st.session_state.em_text_explanation = em_text_expl
         else:
             st.session_state.em_result = None
+            st.session_state.em_result_raw = None
+            st.session_state.em_decision = None
+            st.session_state.em_text_explanation = ""
 
     # --- Results rendering
     if st.session_state.mle_result is not None or st.session_state.em_result is not None:
@@ -170,13 +249,14 @@ def main():
         rounded_em = st.session_state.em_result
 
         st.markdown("**EM diagnosis**")
-        em_tabs = st.tabs(["JSON", "Text", "Ollama"])
+        em_tabs = st.tabs(["JSON", "Text", "Ollama"], default="Text")
 
         with em_tabs[0]:
             st.json(rounded_em)
 
         with em_tabs[1]:
-            st.text("TODO: plain text rendering of EM results")
+            if st.session_state.em_text_explanation:
+                st.markdown(st.session_state.em_text_explanation)
 
         with em_tabs[2]:
             prompt = build_prompt("Expectation Maximization", rounded_em, raw_data)

@@ -1,9 +1,9 @@
-import pandas as pd
-import numpy as np
+from typing import Any
 
-from pgmpy.models import DiscreteBayesianNetwork
+import pandas as pd
 from pgmpy.estimators import MaximumLikelihoodEstimator, ExpectationMaximization
 from pgmpy.inference import VariableElimination
+from pgmpy.models import DiscreteBayesianNetwork
 
 from bn.diagnose_bn_config import DiagnoseBNConfig
 
@@ -22,7 +22,7 @@ class DiagnoseBN:
         self._infer_mle = None
         self._infer_em = None
 
-    def load_data(self):
+    def load_data(self) -> None:
         cfg = self.cfg
     
         tele = pd.read_csv(cfg.telemetry_path, parse_dates=["timestamp"])
@@ -47,7 +47,7 @@ class DiagnoseBN:
 
         self.df = df
     
-    def _train_mle(self):
+    def _train_mle(self) -> None:
         model = DiscreteBayesianNetwork(
             ebunch=[
                 ("spindle_overheat", "high_vibration"),
@@ -66,7 +66,7 @@ class DiagnoseBN:
         self._model_mle = model
         self._infer_mle = VariableElimination(model)
 
-    def _train_em(self, verbose: bool = False):
+    def _train_em(self, verbose: bool = False) -> None:
         latent_vars = [
             "bearing_wear_high",
             "fan_fault",
@@ -111,13 +111,21 @@ class DiagnoseBN:
         self._model_em = model
         self._infer_em = VariableElimination(model)
 
-    def train(self):
+    def train(self) -> None:
         self._train_mle()
         print("MLE model fitted.")
         self._train_em()
         print("EM model fitted.")
 
     def raw2symptoms(self, raw_data: dict[str, float]) -> dict[str, int]:
+        """
+        Convert raw telemetry data to symptom variables.
+        
+        :param raw_data: A dictionary with keys: 'vibration_rms', 'spindle_temp', 'ambient_temp', 'coolant_flow'
+        :type raw_data: dict[str, float]
+        :return: A dictionary with symptom variables
+        :rtype: dict[str, int]
+        """
         if self.vib_hi is None or self.temp_hi is None or self.flow_lo is None:
             raise ValueError("Model thresholds are not set. Train the model first.")
         
@@ -131,7 +139,7 @@ class DiagnoseBN:
             "low_coolant_flow": low_coolant_flow,
         }
     
-    def diagnose(self, raw_data: dict[str, float], method: str = "mle") -> dict[str, float]:
+    def diagnose(self, raw_data: dict[str, float], method: str = "mle") -> dict[str, Any]:
         """
         Run inference for single telemetry data.
         

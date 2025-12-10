@@ -1,0 +1,4 @@
+decision:
+  labor_rate: 100.0
+  risk_penalty: 200.0
+  fail_cost: 5000.0

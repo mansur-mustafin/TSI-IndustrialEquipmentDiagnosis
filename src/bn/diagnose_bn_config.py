@@ -19,7 +19,7 @@ class DiagnoseBNConfig:
     em_seed: int = 42
 
     @classmethod
-    def from_yaml(cls, yaml_path: str, verbose: bool = True) -> "DiagnoseBNConfig":
+    def from_yaml(cls, yaml_path: str, verbose: bool = False) -> "DiagnoseBNConfig":
         import yaml
 
         with open(yaml_path, "r") as f:
