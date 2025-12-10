@@ -40,6 +40,13 @@ def main():
     decision = action_decision.decide(result_em)
     print("Decision:", json.dumps(decision, indent=2))
     
+    proc_id = decision["best_action"]["proc_id"]
+    procedure = kg_client.get_procedure_explanation(proc_id)
+    print("Scheduled procedure details:", json.dumps(procedure, indent=2))
+
+    cause = decision["best_action"]["cause"]
+    cause_context = kg_client.get_cause_context(cause)
+    print("Cause context:", json.dumps(cause_context, indent=2))
 
 if __name__ == "__main__":
     main()

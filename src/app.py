@@ -18,11 +18,9 @@ def build_text_explanation(evidence: dict[str, Any], decision: dict[str, Any], k
     if decision["best_action"]["action"] == "schedule":
         proc_id = decision["best_action"]["proc_id"]
         procedure = kg_client.get_procedure_explanation(proc_id)
-        print("Scheduled procedure details:", json.dumps(procedure, indent=2))
 
         cause = decision["best_action"]["cause"]
         cause_context = kg_client.get_cause_context(cause)
-        print("Cause context:", json.dumps(cause_context, indent=2))
 
         SYM_LABELS = {
             "high_vibration": "Vibration=high",

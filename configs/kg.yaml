@@ -1,2 +1,2 @@
 data:
-  ttl_path: "../data/knowledge_graph.ttl"
+  ttl_path: "../data/knowledgeGraph/knowledgeGraph.ttl"
