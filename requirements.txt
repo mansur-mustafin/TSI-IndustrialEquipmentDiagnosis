@@ -13,3 +13,6 @@ scipy==1.16.3
 # Interface and visualization
 streamlit==1.51.0
 pyyaml==6.0.3
+
+# Knowledge Graph
+rdflib==7.5.0
