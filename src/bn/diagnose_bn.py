@@ -22,7 +22,7 @@ class DiagnoseBN:
         self._infer_mle = None
         self._infer_em = None
 
-    def load_data(self) -> None:
+    def _load_data(self) -> None:
         cfg = self.cfg
     
         tele = pd.read_csv(cfg.telemetry_path, parse_dates=["timestamp"])
@@ -112,6 +112,8 @@ class DiagnoseBN:
         self._infer_em = VariableElimination(model)
 
     def train(self) -> None:
+        self._load_data()
+        print("Data loaded.")
         self._train_mle()
         print("MLE model fitted.")
         self._train_em()

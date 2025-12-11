@@ -1,4 +1,3 @@
-# TODO(mm): update json, ollama, and MLE text 
 import json
 from pathlib import Path
 from typing import Any
@@ -15,6 +14,20 @@ from utils import round_dict, call_ollama
 
 
 def build_text_explanation(evidence: dict[str, Any], decision: dict[str, Any], kg_client: KGClient) -> str:
+    SYM_LABELS = {
+        "high_vibration": "Vibration is High",
+        "low_coolant_flow": "Coolant flow is Low",
+        "high_spindle_temp": "Spindle temperature is High",
+    }
+
+    active_syms = [
+        SYM_LABELS.get(name, name) 
+        for name, val in evidence.items() 
+        if val == 1
+    ]
+
+    because_part = " and ".join(active_syms) if active_syms else "no active symptoms"
+
     if decision["best_action"]["action"] == "schedule":
         proc_id = decision["best_action"]["proc_id"]
         procedure = kg_client.get_procedure_explanation(proc_id)
@@ -22,47 +35,90 @@ def build_text_explanation(evidence: dict[str, Any], decision: dict[str, Any], k
         cause = decision["best_action"]["cause"]
         cause_context = kg_client.get_cause_context(cause)
 
-        SYM_LABELS = {
-            "high_vibration": "Vibration=high",
-            "low_coolant_flow": "CoolantFlow=low",
-            "high_spindle_temp": "SpindleTemp=high",
-        }
-        active_syms = [SYM_LABELS.get(name, name) for name, val in evidence.items() if val == 1]
-
-        if active_syms:
-            because_part = " and ".join(active_syms)
-        else:
-            because_part = "no active symptoms"
-
         proc_name = procedure["proc_name"]
         effort_h = procedure["effort_h"]
         parts_cost = procedure["spare_parts_cost_eur"]
 
         explanation = (
-            f"Because {because_part}, the system estimates Overheat="
-            f"{decision['overheat_prob']:.2f}. Likely cause is {cause_context['cause_name']}. "
+            f"Because {because_part}, the system estimates Overheat probability of {decision['overheat_prob']:.2f}. "
+            f"Likely cause is {cause_context['cause_name']}. "
             f"Recommended action: {proc_name} ({effort_h:.0f}h, {parts_cost:.0f}€)."
         )
     else:
-        return "TODO: explanation for 'continue' action."
+        return (
+            f"Because {because_part}, the system estimates" 
+            f"Overheat probability of {decision['overheat_prob']:.2f}. "
+            "It recommends continuing operation without scheduling maintenance."
+        )
 
     return explanation
 
 
-def build_prompt(method: str, result: dict, raw_data: dict) -> str:
-    return f"""You are an expert in rotating machinery diagnostics. 
+def build_mle_text_explanation(result: dict[str, Any]) -> str:
+    evidence = result.get("evidence", {})
+    overheat_prob = float(result.get("overheat_prob", 0.0))
+
+    SYM_LABELS = {
+        "high_vibration": "Vibration is High",
+        "low_coolant_flow": "Coolant flow is Low",
+        "high_spindle_temp": "Spindle temperature is High",
+    }
+    active_syms = [
+        label
+        for name, label in SYM_LABELS.items()
+        if evidence.get(name, 0) == 1
+    ]
+
+    if active_syms:
+        because = ", ".join(active_syms)
+        return (
+            f"Because {because}. The system estimates Overheat probability of {overheat_prob:.2f}. "
+            f"For cause-level diagnosis and maintenance recommendations, see the EM-based model below."
+        )
+    else:
+        return (
+            "No symptoms are active. "
+            f"Estimated Overheat probability of spindle is {overheat_prob:.2f}."
+        )
+
+
+def build_prompt(
+    method: str,
+    result: dict[str, Any],
+    raw_data: dict[str, Any],
+    decision: dict[str, Any] | None = None,
+) -> str:
+    base = f"""You are an expert in rotating machinery diagnostics.
+
 Sensor readings (input data):
 {json.dumps(raw_data, indent=2)}
+
 Diagnosis probabilities using method "{method}":
 {json.dumps(result, indent=2)}
-Explain in clear language what the most likely issues are.
 """
+
+    if decision is not None:
+        base += f"""
+Decision module output (recommended action and expected costs):
+{json.dumps(decision, indent=2)}
+
+Explain in clear language:
+- What the most likely root causes are,
+- Why the recommended action is reasonable,
+- How the sensor readings relate to the inferred causes and the recommended action.
+"""
+    else:
+        base += """
+Explain in clear language what the most likely issues are and how the sensor readings support that conclusion.
+"""
+
+    return base
+
 
 
 def get_trained_model():
     config = DiagnoseBNConfig.from_yaml("./../configs/bn.yaml")
     model = DiagnoseBN(config)
-    model.load_data()
     model.train()
     return model
 
@@ -192,10 +248,26 @@ def main():
 
             action_decision = get_action_decision(kg_client)
             decision = action_decision.decide(result_em)
-            st.session_state.em_decision = decision
+
+            # --- Enrich decision with KG context ---
+            if decision["best_action"]["action"] == "schedule":
+                best = decision["best_action"]
+                proc_id = best["proc_id"]
+                procedure = kg_client.get_procedure_explanation(proc_id)
+                cause = best["cause"]
+                cause_context = kg_client.get_cause_context(cause)
+                full_decision = {
+                    **decision,
+                    "procedure_details": procedure,
+                    "cause_context": cause_context,
+                }
+
+                st.session_state.em_decision = full_decision
+            else:
+                st.session_state.em_decision = decision
 
             em_text_expl = build_text_explanation(
-                result_em["evidence"], decision, kg_client
+                result_em["evidence"], st.session_state.em_decision, kg_client
             )
             st.session_state.em_text_explanation = em_text_expl
         else:
@@ -213,13 +285,14 @@ def main():
         rounded_mle = st.session_state.mle_result
 
         st.markdown("**MLE diagnosis**")
-        mle_tabs = st.tabs(["JSON", "Text", "Ollama"])
+        mle_tabs = st.tabs(["JSON", "Text", "Ollama"], default="Text")
 
         with mle_tabs[0]:
             st.json(rounded_mle)
 
         with mle_tabs[1]:
-            st.text("TODO: plain text rendering of MLE results")
+            if st.session_state.mle_result is not None:
+                st.markdown(build_mle_text_explanation(rounded_mle))
 
         with mle_tabs[2]:
             prompt = build_prompt("Maximum Likelihood Estimation", rounded_mle, raw_data)
@@ -250,14 +323,24 @@ def main():
         em_tabs = st.tabs(["JSON", "Text", "Ollama"], default="Text")
 
         with em_tabs[0]:
+            st.caption("EM diagnosis (BN probabilities)")
             st.json(rounded_em)
+
+            if st.session_state.em_decision is not None:
+                st.caption("Decision & actions (BN → KG → decision)")
+                st.json(round_dict(st.session_state.em_decision, ndigits=4))
 
         with em_tabs[1]:
             if st.session_state.em_text_explanation:
                 st.markdown(st.session_state.em_text_explanation)
 
         with em_tabs[2]:
-            prompt = build_prompt("Expectation Maximization", rounded_em, raw_data)
+            prompt = build_prompt(
+                "Expectation Maximization",
+                rounded_em,
+                raw_data,
+                decision=st.session_state.em_decision,
+            )
 
             with st.expander("Prompt"):
                 st.code(prompt, language="markdown")
