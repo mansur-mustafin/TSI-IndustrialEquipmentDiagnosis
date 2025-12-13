@@ -1,11 +1,10 @@
 from typing import Any
 
 import pandas as pd
+from bn.diagnose_bn_config import DiagnoseBNConfig
 from pgmpy.estimators import MaximumLikelihoodEstimator, ExpectationMaximization
 from pgmpy.inference import VariableElimination
 from pgmpy.models import DiscreteBayesianNetwork
-
-from bn.diagnose_bn_config import DiagnoseBNConfig
 
 
 class DiagnoseBN:
@@ -24,7 +23,7 @@ class DiagnoseBN:
 
     def _load_data(self) -> None:
         cfg = self.cfg
-    
+
         tele = pd.read_csv(cfg.telemetry_path, parse_dates=["timestamp"])
         labels = pd.read_csv(cfg.labels_path, parse_dates=["timestamp"])
 
@@ -46,7 +45,7 @@ class DiagnoseBN:
         df["spindle_overheat"] = df["spindle_overheat"].astype(int)
 
         self.df = df
-    
+
     def _train_mle(self) -> None:
         model = DiscreteBayesianNetwork(
             ebunch=[
@@ -62,7 +61,7 @@ class DiagnoseBN:
 
         model.fit(data_mle, estimator=MaximumLikelihoodEstimator)
         model.check_model()
-        
+
         self._model_mle = model
         self._infer_mle = VariableElimination(model)
 
@@ -107,7 +106,7 @@ class DiagnoseBN:
 
         model.add_cpds(*cpds_em)
         model.check_model()
-        
+
         self._model_em = model
         self._infer_em = VariableElimination(model)
 
@@ -130,7 +129,7 @@ class DiagnoseBN:
         """
         if self.vib_hi is None or self.temp_hi is None or self.flow_lo is None:
             raise ValueError("Model thresholds are not set. Train the model first.")
-        
+
         high_vibration = int(raw_data["vibration_rms"] > self.vib_hi)
         high_spindle_temp = int((raw_data["spindle_temp"] - raw_data["ambient_temp"]) > self.temp_hi)
         low_coolant_flow = int(raw_data["coolant_flow"] < self.flow_lo)
@@ -140,7 +139,7 @@ class DiagnoseBN:
             "high_spindle_temp": high_spindle_temp,
             "low_coolant_flow": low_coolant_flow,
         }
-    
+
     def diagnose(self, raw_data: dict[str, float], method: str = "mle") -> dict[str, Any]:
         """
         Run inference for single telemetry data.

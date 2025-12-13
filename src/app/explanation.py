@@ -1,7 +1,7 @@
-from typing import Any
-import streamlit as st
-from kg.kg_client import KGClient
 import json
+from typing import Any
+
+from kg.kg_client import KGClient
 
 SYM_LABELS: dict[str, str] = {
     "high_vibration": "Vibration is High",

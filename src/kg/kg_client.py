@@ -1,8 +1,7 @@
 from typing import Any
 
-from rdflib import Graph, Namespace
-
 from kg.kg_client_config import KGClientConfig
+from rdflib import Graph, Namespace
 
 EX = Namespace("http://example.org/cnc#")
 
@@ -42,14 +41,14 @@ class KGClient:
         PREFIX ex: <http://example.org/cnc#>
         SELECT ?proc ?proc_name ?effort ?cost ?risk ?comp_name
         WHERE {{
-          ?proc a ex:Procedure ;
+            ?proc a ex:Procedure ;
                 ex:mitigatesCause ex:{cause_local} ;
                 ex:hasName ?proc_name ;
                 ex:effortHours ?effort ;
                 ex:sparePartsCostEur ?cost ;
                 ex:riskRating ?risk ;
                 ex:targetsComponent ?comp .
-          ?comp ex:hasName ?comp_name .
+            ?comp ex:hasName ?comp_name .
         }}
         """
 
@@ -59,6 +58,7 @@ class KGClient:
         for row in results:
             procedures.append({
                 "proc_uri": str(row.proc),
+                "proc_id": str(row.proc).split("#")[-1],
                 "proc_name": str(row.proc_name),
                 "effort_h": float(row.effort),
                 "spare_parts_cost_eur": float(row.cost),
@@ -123,18 +123,18 @@ class KGClient:
         PREFIX ex: <http://example.org/cnc#>
         SELECT ?proc_name ?comp_name ?cause_name ?sym_name ?effort ?cost
         WHERE {{
-        ex:{proc_id} a ex:Procedure ;
-                        ex:hasName ?proc_name ;
-                        ex:targetsComponent ?comp ;
-                        ex:mitigatesCause ?cause ;
-                        ex:effortHours ?effort ;
-                        ex:sparePartsCostEur ?cost .
-        ?comp ex:hasName ?comp_name .
-        ?cause ex:hasName ?cause_name .
-        OPTIONAL {{
-            ?cause ex:causesSymptom ?sym .
-            ?sym ex:hasName ?sym_name .
-        }}
+            ex:{proc_id} a ex:Procedure ;
+                            ex:hasName ?proc_name ;
+                            ex:targetsComponent ?comp ;
+                            ex:mitigatesCause ?cause ;
+                            ex:effortHours ?effort ;
+                            ex:sparePartsCostEur ?cost .
+            ?comp ex:hasName ?comp_name .
+            ?cause ex:hasName ?cause_name .
+            OPTIONAL {{
+                ?cause ex:causesSymptom ?sym .
+                ?sym ex:hasName ?sym_name .
+            }}
         }}
         """
 

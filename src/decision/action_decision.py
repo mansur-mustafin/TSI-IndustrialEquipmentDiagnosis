@@ -5,7 +5,7 @@ from kg.kg_client import KGClient
 
 
 class ActionDecision:
-    
+
     def __init__(self, kg_client: KGClient, decision_config: DecisionConfig):
         self.kg = kg_client
         self.cfg = decision_config
@@ -47,8 +47,8 @@ class ActionDecision:
                 total_cost = proc_cost + (1 - prob) * overheat_prob * self.cfg.fail_cost
 
                 actions.append({
-                    "action" : "schedule",
-                    "proc_id": proc["proc_uri"].split("#")[-1],
+                    "action": "schedule",
+                    "proc_id": proc["proc_id"],
                     "proc_name": proc["proc_name"],
                     "cause": cause,
                     "p_cause": prob,
@@ -56,7 +56,7 @@ class ActionDecision:
                     "total_cost": total_cost,
                     "target_component": proc["target_component"],
                 })
-        
+
         best = min(actions, key=lambda a: a["total_cost"])
 
         return {

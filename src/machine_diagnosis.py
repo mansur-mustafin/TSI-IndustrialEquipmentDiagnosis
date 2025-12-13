@@ -2,9 +2,8 @@ from typing import Any
 
 import streamlit as st
 
-from app.ui import render_input_section, render_diagnosis_options, render_results
 from app.diagnosis import run_diagnosis
-
+from app.ui import render_input_section, render_diagnosis_options, render_results
 
 SESSION_DEFAULTS: dict[str, Any] = {
     "mle_result": None,

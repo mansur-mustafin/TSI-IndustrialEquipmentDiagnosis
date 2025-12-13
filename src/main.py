@@ -1,5 +1,4 @@
 import json
-from typing import Any
 
 from bn.diagnose_bn import DiagnoseBN
 from bn.diagnose_bn_config import DiagnoseBNConfig
@@ -7,6 +6,7 @@ from decision.action_decision import ActionDecision
 from decision.decision_config import DecisionConfig
 from kg.kg_client import KGClient
 from kg.kg_client_config import KGClientConfig
+
 
 def main():
     raw_data = {
@@ -38,7 +38,7 @@ def main():
 
     decision = action_decision.decide(result_em)
     print("Decision:", json.dumps(decision, indent=2))
-    
+
     if decision["best_action"]["action"] != "continue":
         proc_id = decision["best_action"]["proc_id"]
         procedure = kg_client.get_procedure_explanation(proc_id)
@@ -47,6 +47,7 @@ def main():
         cause = decision["best_action"]["cause"]
         cause_context = kg_client.get_cause_context(cause)
         print("Cause context:", json.dumps(cause_context, indent=2))
+
 
 if __name__ == "__main__":
     main()

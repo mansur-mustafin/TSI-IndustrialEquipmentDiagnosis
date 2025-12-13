@@ -1,15 +1,14 @@
 from typing import Any
 
 import streamlit as st
-
+from app.explanation import build_text_explanation
+from app.utils import round_dict
 from bn.diagnose_bn import DiagnoseBN
 from bn.diagnose_bn_config import DiagnoseBNConfig
 from decision.action_decision import ActionDecision
 from decision.decision_config import DecisionConfig
 from kg.kg_client import KGClient
 from kg.kg_client_config import KGClientConfig
-from app.explanation import build_text_explanation
-from app.utils import round_dict
 
 
 def get_trained_model():

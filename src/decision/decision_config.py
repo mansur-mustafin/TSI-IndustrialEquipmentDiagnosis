@@ -3,9 +3,9 @@ from dataclasses import dataclass
 
 @dataclass
 class DecisionConfig:
-    labor_rate: float      # cost per hour of maintenance
-    risk_penalty: float    # cost per risk
-    fail_cost: float       # cost of spindle overheat (fail)
+    labor_rate: float       # cost per hour of maintenance
+    risk_penalty: float     # cost per risk
+    fail_cost: float        # cost of spindle overheat (fail)
 
     @classmethod
     def from_yaml(cls, path: str) -> "DecisionConfig":
