@@ -1,4 +1,6 @@
 @prefix ex: <http://example.org/cnc#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 ex:CleanFilter a ex:Procedure ;
@@ -36,6 +38,56 @@ ex:ReplaceBearing a ex:Procedure ;
     ex:riskRating 3 ;
     ex:sparePartsCostEur "600"^^xsd:float ;
     ex:targetsComponent ex:Bearing .
+
+ex:affectsComponent a owl:ObjectProperty ;
+    rdfs:domain ex:Procedure ;
+    rdfs:range ex:Component .
+
+ex:causesSymptom a owl:ObjectProperty ;
+    rdfs:domain ex:Procedure ;
+    rdfs:range ex:Symptom .
+
+ex:effortHours a owl:DatatypeProperty ;
+    rdfs:domain ex:Procedure ;
+    rdfs:range xsd:float .
+
+ex:function a owl:DatatypeProperty ;
+    rdfs:domain ex:Component ;
+    rdfs:range xsd:string .
+
+ex:hasID a owl:DatatypeProperty ;
+    rdfs:domain ex:Cause,
+        ex:Component,
+        ex:Procedure,
+        ex:Symptom ;
+    rdfs:range xsd:string .
+
+ex:hasName a owl:DatatypeProperty ;
+    rdfs:domain ex:Cause,
+        ex:Component,
+        ex:Procedure,
+        ex:Symptom ;
+    rdfs:range xsd:string .
+
+ex:mitigatesCause a owl:ObjectProperty ;
+    rdfs:domain ex:Procedure ;
+    rdfs:range ex:Cause .
+
+ex:partOf a owl:ObjectProperty ;
+    rdfs:domain ex:Component ;
+    rdfs:range ex:Component .
+
+ex:riskRating a owl:DatatypeProperty ;
+    rdfs:domain ex:Procedure ;
+    rdfs:range xsd:int .
+
+ex:sparePartsCostEur a owl:DatatypeProperty ;
+    rdfs:domain ex:Procedure ;
+    rdfs:range xsd:float .
+
+ex:targetsComponent a owl:ObjectProperty ;
+    rdfs:domain ex:Procedure ;
+    rdfs:range ex:Component .
 
 ex:BearingWearHigh a ex:Cause ;
     ex:affectsComponent ex:Bearing ;
@@ -100,4 +152,12 @@ ex:CoolingSystem a ex:Component ;
     ex:function "Dissipate heat" ;
     ex:hasID "C2" ;
     ex:hasName "CoolingSystem" .
+
+ex:Symptom a owl:Class .
+
+ex:Cause a owl:Class .
+
+ex:Component a owl:Class .
+
+ex:Procedure a owl:Class .
 
