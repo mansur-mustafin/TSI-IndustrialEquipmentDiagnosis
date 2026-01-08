@@ -14,6 +14,7 @@ def main():
         "spindle_temp": 98.26,
         "ambient_temp": 19.73,
         "coolant_flow": 0.612,
+        "spindle_speed": 2600.0,
     }
 
     # BN

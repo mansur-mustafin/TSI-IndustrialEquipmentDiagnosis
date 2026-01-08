@@ -2,3 +2,4 @@ symptom_id,name
 S1,HighVibration
 S2,HighSpindleTemp
 S3,LowCoolantFlow
+S4,HighSpindleSpeed

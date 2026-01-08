@@ -7,3 +7,5 @@ CloggedFilter,causesSymptom,LowCoolantFlow
 CloggedFilter,affectsComponent,Filter
 LowCoolingEfficiency,causesSymptom,HighSpindleTemp
 LowCoolingEfficiency,affectsComponent,CoolingSystem
+LowLoadCondition,causesSymptom,HighSpindleSpeed
+LowLoadCondition,affectsComponent,Spindle

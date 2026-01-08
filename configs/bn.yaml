@@ -7,6 +7,7 @@ thresholds:
   vib_hi: 0.9
   temp_hi: 0.9
   flow_lo: 0.1
+  speed_hi: 0.9
 
 em:
   em_max_iter: 100

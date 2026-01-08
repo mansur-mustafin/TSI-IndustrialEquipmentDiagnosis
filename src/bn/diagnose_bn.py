@@ -38,9 +38,11 @@ class DiagnoseBN:
         self.vib_hi = df["vibration_rms"].quantile(cfg.vib_hi)
         self.temp_hi = df["delta_temp"].quantile(cfg.temp_hi)
         self.flow_lo = df["coolant_flow"].quantile(cfg.flow_lo)
+        self.speed_hi = df["spindle_speed"].quantile(cfg.speed_hi)
 
         df["high_vibration"] = (df["vibration_rms"] > self.vib_hi).astype(int)
         df["high_spindle_temp"] = (df["delta_temp"] > self.temp_hi).astype(int)
+        df["high_spindle_speed"] = (df["spindle_speed"] >= self.speed_hi).astype(int)
         df["low_coolant_flow"] = (df["coolant_flow"] < self.flow_lo).astype(int)
         df["spindle_overheat"] = df["spindle_overheat"].astype(int)
 
@@ -51,12 +53,13 @@ class DiagnoseBN:
             ebunch=[
                 ("spindle_overheat", "high_vibration"),
                 ("spindle_overheat", "high_spindle_temp"),
+                ("spindle_overheat", "high_spindle_speed"),
                 ("spindle_overheat", "low_coolant_flow"),
             ],
         )
 
         data_mle = self.df[
-            ["spindle_overheat", "high_vibration", "high_spindle_temp", "low_coolant_flow"]
+            ["spindle_overheat", "high_vibration", "high_spindle_temp", "high_spindle_speed", "low_coolant_flow"]
         ]
 
         model.fit(data_mle, estimator=MaximumLikelihoodEstimator)
@@ -71,6 +74,7 @@ class DiagnoseBN:
             "fan_fault",
             "clogged_filter",
             "low_cooling_efficiency",
+            "low_load_condition",
         ]
 
         model = DiscreteBayesianNetwork(
@@ -86,12 +90,15 @@ class DiagnoseBN:
 
                 ("low_cooling_efficiency", "high_spindle_temp"),
                 ("low_cooling_efficiency", "spindle_overheat"),
+
+                ("low_load_condition", "high_spindle_speed"),
+                ("low_load_condition", "spindle_overheat")
             ],
             latents=set(latent_vars)
         )
 
         data_em = self.df[
-            ["spindle_overheat", "high_vibration", "high_spindle_temp", "low_coolant_flow"]
+            ["spindle_overheat", "high_vibration", "high_spindle_temp", "high_spindle_speed", "low_coolant_flow",]
         ]
 
         em = ExpectationMaximization(model, data_em)
@@ -133,10 +140,12 @@ class DiagnoseBN:
         high_vibration = int(raw_data["vibration_rms"] > self.vib_hi)
         high_spindle_temp = int((raw_data["spindle_temp"] - raw_data["ambient_temp"]) > self.temp_hi)
         low_coolant_flow = int(raw_data["coolant_flow"] < self.flow_lo)
+        high_spindle_speed = int(raw_data["spindle_speed"] >= self.speed_hi)
 
         return {
             "high_vibration": high_vibration,
             "high_spindle_temp": high_spindle_temp,
+            "high_spindle_speed": high_spindle_speed,
             "low_coolant_flow": low_coolant_flow,
         }
 
@@ -180,7 +189,7 @@ class DiagnoseBN:
         if method == "em":
             cause_probs = {}
             for cause in ["bearing_wear_high", "fan_fault",
-                          "clogged_filter", "low_cooling_efficiency"]:
+                          "clogged_filter", "low_cooling_efficiency", "low_load_condition"]:
                 q_cause = infer.query(
                     variables=[cause],
                     evidence=symptoms,
