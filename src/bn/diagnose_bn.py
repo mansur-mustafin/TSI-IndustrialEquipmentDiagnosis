@@ -14,6 +14,7 @@ class DiagnoseBN:
         self.vib_hi = None
         self.temp_hi = None
         self.flow_lo = None
+        self.speed_hi = None
 
         self.df = None
         self._model_mle = None
@@ -58,9 +59,13 @@ class DiagnoseBN:
             ],
         )
 
-        data_mle = self.df[
-            ["spindle_overheat", "high_vibration", "high_spindle_temp", "high_spindle_speed", "low_coolant_flow"]
-        ]
+        data_mle = self.df[[
+            "spindle_overheat", 
+            "high_vibration", 
+            "high_spindle_temp", 
+            "high_spindle_speed", 
+            "low_coolant_flow"
+        ]]
 
         model.fit(data_mle, estimator=MaximumLikelihoodEstimator)
         model.check_model()
@@ -129,12 +134,12 @@ class DiagnoseBN:
         """
         Convert raw telemetry data to symptom variables.
         
-        :param raw_data: A dictionary with keys: 'vibration_rms', 'spindle_temp', 'ambient_temp', 'coolant_flow'
+        :param raw_data: A dictionary with keys: 'vibration_rms', 'spindle_temp', 'ambient_temp', 'coolant_flow', 'spindle_speed'
         :type raw_data: dict[str, float]
         :return: A dictionary with symptom variables
         :rtype: dict[str, int]
         """
-        if self.vib_hi is None or self.temp_hi is None or self.flow_lo is None:
+        if self.vib_hi is None or self.temp_hi is None or self.flow_lo is None or self.speed_hi is None:
             raise ValueError("Model thresholds are not set. Train the model first.")
 
         high_vibration = int(raw_data["vibration_rms"] > self.vib_hi)
@@ -188,8 +193,8 @@ class DiagnoseBN:
 
         if method == "em":
             cause_probs = {}
-            for cause in ["bearing_wear_high", "fan_fault",
-                          "clogged_filter", "low_cooling_efficiency", "low_load_condition"]:
+            for cause in ["bearing_wear_high", "fan_fault", "clogged_filter", 
+                          "low_cooling_efficiency", "low_load_condition"]:
                 q_cause = infer.query(
                     variables=[cause],
                     evidence=symptoms,

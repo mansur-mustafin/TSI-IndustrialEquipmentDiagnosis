@@ -2,3 +2,6 @@ decision:
   labor_rate: 100.0
   risk_penalty: 200.0
   fail_cost: 5000.0
+
+  slowdown_lost_cost: 200.0
+  slowdown_risk_factor: 0.5
