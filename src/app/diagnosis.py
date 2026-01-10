@@ -6,7 +6,7 @@ from app.utils import round_dict
 from bn.diagnose_bn import DiagnoseBN
 from bn.diagnose_bn_config import DiagnoseBNConfig
 from decision.action_decision import ActionDecision
-from decision.decision_config import DecisionConfig
+from decision.action_decision_config import ActionDecisionConfig
 from kg.kg_client import KGClient
 from kg.kg_client_config import KGClientConfig
 
@@ -28,7 +28,7 @@ def get_kg_client():
 
 
 def get_action_decision(kg_client: KGClient) -> ActionDecision:
-    decision_cfg = DecisionConfig.from_yaml("./../configs/decision.yaml")
+    decision_cfg = ActionDecisionConfig.from_yaml("./../configs/decision.yaml")
     return ActionDecision(kg_client, decision_cfg)
 
 

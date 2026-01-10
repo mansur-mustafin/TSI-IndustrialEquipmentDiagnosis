@@ -1,12 +1,12 @@
 from typing import Any
 
-from decision.decision_config import DecisionConfig
+from decision.action_decision_config import ActionDecisionConfig
 from kg.kg_client import KGClient
 
 
 class ActionDecision:
 
-    def __init__(self, kg_client: KGClient, decision_config: DecisionConfig):
+    def __init__(self, kg_client: KGClient, decision_config: ActionDecisionConfig):
         self.kg = kg_client
         self.cfg = decision_config
 
@@ -16,7 +16,6 @@ class ActionDecision:
         risk_cost = proc["risk_rating"] * self.cfg.risk_penalty
         return float(labor + parts + risk_cost)
 
-    # TODO: add action "slow_down"
     def decide(self, diagnosis: dict[str, float]) -> dict[str, Any]:
         """
         Docstring for decide
@@ -42,12 +41,20 @@ class ActionDecision:
             procedures = self.kg.get_procedures_for_cause(cause)
 
             for proc in procedures:
-                proc_cost = self._cost(proc)
-                # cost + (1 - P(cause | evidence)) * P(overheat | evidence) * fail_cost
-                total_cost = proc_cost + (1 - prob) * overheat_prob * self.cfg.fail_cost
+
+                if proc["proc_name"] == "SlowDown":
+                    action = "slow_down"
+                    proc_cost = self.cfg.slowdown_lost_cost
+                    alpha = self.cfg.slowdown_risk_factor
+                    total_cost = proc_cost + alpha * overheat_prob * self.cfg.fail_cost
+                else:
+                    action = "schedule"
+                    proc_cost = self._cost(proc)
+                    # cost + (1 - P(cause | evidence)) * P(overheat | evidence) * fail_cost
+                    total_cost = proc_cost + (1 - prob) * overheat_prob * self.cfg.fail_cost
 
                 actions.append({
-                    "action": "schedule",
+                    "action": action,
                     "proc_id": proc["proc_id"],
                     "proc_name": proc["proc_name"],
                     "cause": cause,
@@ -62,6 +69,6 @@ class ActionDecision:
         return {
             "overheat_prob": overheat_prob,
             "cause_probs": cause_probs,
-            # "actions": actions,
+            "actions": actions,
             "best_action": best,
         }

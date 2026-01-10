@@ -3,7 +3,7 @@ import json
 from bn.diagnose_bn import DiagnoseBN
 from bn.diagnose_bn_config import DiagnoseBNConfig
 from decision.action_decision import ActionDecision
-from decision.decision_config import DecisionConfig
+from decision.action_decision_config import ActionDecisionConfig
 from kg.kg_client import KGClient
 from kg.kg_client_config import KGClientConfig
 
@@ -11,7 +11,7 @@ from kg.kg_client_config import KGClientConfig
 def main():
     raw_data = {
         "vibration_rms": 0.893,
-        "spindle_temp": 98.26,
+        "spindle_temp": 68.26,
         "ambient_temp": 19.73,
         "coolant_flow": 0.612,
         "spindle_speed": 2600.0,
@@ -34,7 +34,7 @@ def main():
     kg_client = KGClient(kg_cfg)
 
     # Action
-    decision_cfg = DecisionConfig.from_yaml("./../configs/decision.yaml")
+    decision_cfg = ActionDecisionConfig.from_yaml("./../configs/decision.yaml")
     action_decision = ActionDecision(kg_client, decision_cfg)
 
     decision = action_decision.decide(result_em)
