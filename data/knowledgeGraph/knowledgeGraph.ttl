@@ -49,11 +49,11 @@ ex:SlowDown a ex:Procedure ;
     ex:targetsComponent ex:Spindle .
 
 ex:affectsComponent a owl:ObjectProperty ;
-    rdfs:domain ex:Procedure ;
+    rdfs:domain ex:Cause ;
     rdfs:range ex:Component .
 
 ex:causesSymptom a owl:ObjectProperty ;
-    rdfs:domain ex:Procedure ;
+    rdfs:domain ex:Cause ;
     rdfs:range ex:Symptom .
 
 ex:effortHours a owl:DatatypeProperty ;
