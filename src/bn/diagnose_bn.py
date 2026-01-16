@@ -154,12 +154,12 @@ class DiagnoseBN:
             "low_coolant_flow": low_coolant_flow,
         }
 
-    def diagnose(self, raw_data: dict[str, float], method: str = "mle") -> dict[str, Any]:
+    def diagnose(self, symptoms: dict[str, int], method: str = "mle") -> dict[str, Any]:
         """
         Run inference for single telemetry data.
         
-        :param raw_data: A dictionary with keys: 'vibration_rms', 'spindle_temp', 'ambient_temp', 'coolant_flow'
-        :type raw_data: dict[str, float]
+        :param symptoms: Binary symptom variables (0/1) keyed by symptom name.
+        :type symptoms: dict[str, int]
         :param method: Inference method: 'mle' or 'em'
         :type method: str
         :return: Dictionary with diagnosis results
@@ -170,8 +170,6 @@ class DiagnoseBN:
             raise ValueError("MLE inference model is not available. Train the model first.")
         if method == "em" and self._infer_em is None:
             raise ValueError("EM inference model is not available. Train the model first.")
-
-        symptoms = self.raw2symptoms(raw_data)
 
         if method == "mle":
             infer = self._infer_mle
@@ -204,3 +202,13 @@ class DiagnoseBN:
             result["cause_probs"] = cause_probs
 
         return result
+
+    def diagnose_from_raw(self, raw_data: dict[str, float], method: str = "mle") -> dict[str, Any]:
+        """Run inference when raw telemetry data is given.
+
+        :param raw_data: Raw telemetry data with keys: 'vibration_rms', 'spindle_temp', 'ambient_temp', 'coolant_flow', 'spindle_speed'.
+        :param method: Inference method: 'mle' or 'em'.
+        """
+
+        symptoms = self.raw2symptoms(raw_data)
+        return self.diagnose(symptoms, method=method)

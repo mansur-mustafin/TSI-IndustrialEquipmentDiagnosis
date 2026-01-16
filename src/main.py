@@ -27,10 +27,10 @@ def main():
     model.train()
     print("Model trained.\n")
 
-    result_mle = model.diagnose(raw_data, method="mle")
+    result_mle = model.diagnose_from_raw(raw_data, method="mle")
     print("MLE diagnosis:", json.dumps(result_mle, indent=2))
 
-    result_em = model.diagnose(raw_data, method="em")
+    result_em = model.diagnose_from_raw(raw_data, method="em")
     print("EM diagnosis:", json.dumps(result_em, indent=2))
 
     # KG
@@ -177,7 +177,7 @@ def evaluate():
             "spindle_speed": row["spindle_speed"],
         }
 
-        result_em = model.diagnose(raw_data, method="em")
+        result_em = model.diagnose_from_raw(raw_data, method="em")
 
         # KG
         kg_cfg = KGClientConfig.from_yaml("./../configs/kg.yaml")

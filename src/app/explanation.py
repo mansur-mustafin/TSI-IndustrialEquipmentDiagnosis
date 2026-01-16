@@ -7,6 +7,7 @@ SYM_LABELS: dict[str, str] = {
     "high_vibration": "Vibration is High",
     "low_coolant_flow": "Coolant flow is Low",
     "high_spindle_temp": "Spindle temperature is High",
+    "high_spindle_speed": "Spindle speed is High",
 }
 
 

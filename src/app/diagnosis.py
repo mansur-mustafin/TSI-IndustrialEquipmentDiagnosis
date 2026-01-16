@@ -32,7 +32,12 @@ def get_action_decision(kg_client: KGClient) -> ActionDecision:
     return ActionDecision(kg_client, decision_cfg)
 
 
-def run_diagnosis(raw_data: dict[str, Any], method: str) -> None:
+def run_diagnosis(
+    method: str,
+    raw_data: dict[str, Any] | None,
+    symptoms: dict[str, int] | None = None,
+    input_mode: str = "sensors",
+) -> None:
     model = get_trained_model()
     kg_client = get_kg_client()
     action_decision = get_action_decision(kg_client)
@@ -45,14 +50,22 @@ def run_diagnosis(raw_data: dict[str, Any], method: str) -> None:
 
     # --- MLE
     if method in ("mle", "both"):
-        result_mle = model.diagnose(raw_data, method="mle")
+        if input_mode == "symptoms" and symptoms is not None:
+            result_mle = model.diagnose(symptoms, method="mle")
+        if input_mode == "sensors" and raw_data is not None:
+            result_mle = model.diagnose_from_raw(raw_data, method="mle")
+
         st.session_state.mle_result = round_dict(result_mle, ndigits=4)
     else:
         st.session_state.mle_result = None
 
     # --- EM
     if method in ("em", "both"):
-        result_em = model.diagnose(raw_data, method="em")
+        if input_mode == "symptoms" and symptoms is not None:
+            result_em = model.diagnose(symptoms, method="em")
+        if input_mode == "sensors" and raw_data is not None:
+            result_em = model.diagnose_from_raw(raw_data, method="em")
+
         st.session_state.em_result_raw = result_em
         st.session_state.em_result = round_dict(result_em, ndigits=4)
 
@@ -85,3 +98,5 @@ def run_diagnosis(raw_data: dict[str, Any], method: str) -> None:
         st.session_state.em_result_raw = None
         st.session_state.em_decision = None
         st.session_state.em_text_explanation = ""
+
+    st.rerun()
