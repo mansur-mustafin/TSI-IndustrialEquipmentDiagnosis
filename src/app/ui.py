@@ -24,6 +24,12 @@ def render_input_section() -> dict[str, Any]:
             step=1.0,
             format="%.1f",
         )
+        spindle_speed = st.number_input(
+            "Spindle speed (RPM)",
+            value=2000,
+            step=400,
+            format="%d",
+        )
     with col2:
         ambient_temp = st.number_input(
             "Ambient temperature (°C)",
@@ -43,6 +49,7 @@ def render_input_section() -> dict[str, Any]:
         "spindle_temp": spindle_temp,
         "ambient_temp": ambient_temp,
         "coolant_flow": coolant_flow,
+        "spindle_speed": spindle_speed,
     }
 
     col1, col2 = st.columns(2)

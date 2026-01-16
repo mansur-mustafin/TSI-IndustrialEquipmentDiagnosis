@@ -69,6 +69,6 @@ class ActionDecision:
         return {
             "overheat_prob": overheat_prob,
             "cause_probs": cause_probs,
-            "actions": actions,
+            # "actions": actions,
             "best_action": best,
         }
