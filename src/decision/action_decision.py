@@ -17,7 +17,7 @@ class ActionDecision:
         parts = proc["spare_parts_cost_eur"]
         risk_cost = proc["risk_rating"] * self.cfg.risk_penalty
         return float(labor + parts + risk_cost)
-
+    
     def decide(self, diagnosis: dict[str, float]) -> dict[str, Any]:
         """
         Docstring for decide
@@ -27,6 +27,58 @@ class ActionDecision:
         :type diagnosis: dict[str, float]
         :return: Description
         :rtype: dict[str, Any]
+        """
+        if diagnosis.get("method") != "em":
+            raise ValueError("Diagnosis must be provided with 'em' method.")
+
+        overheat_prob = float(diagnosis.get("overheat_prob"))
+        cause_probs = diagnosis.get("cause_probs")
+
+        actions: list[dict[str, Any]] = [{
+            "action": "continue",
+            "total_cost": overheat_prob * self.cfg.fail_cost,
+        }]
+
+        for cause, prob in cause_probs.items():
+            procedures = self.kg.get_procedures_for_cause(cause)
+
+            for proc in procedures:
+
+                if proc["proc_name"] == "SlowDown":
+                    action = "slow_down"
+                    proc_cost = self.cfg.slowdown_lost_cost
+                    alpha = self.cfg.slowdown_risk_factor
+                    total_cost = proc_cost + alpha * overheat_prob * self.cfg.fail_cost
+                else:
+                    action = "schedule"
+                    proc_cost = self._cost(proc)
+                    # cost + (1 - P(cause | evidence)) * P(overheat | evidence) * fail_cost
+                    total_cost = proc_cost + (1 - prob) * overheat_prob * self.cfg.fail_cost
+
+                actions.append({
+                    "action": action,
+                    "proc_id": proc["proc_id"],
+                    "proc_name": proc["proc_name"],
+                    "cause": cause,
+                    "p_cause": prob,
+                    "proc_cost": proc_cost,
+                    "total_cost": total_cost,
+                    "target_component": proc["target_component"],
+                })
+
+        actions = sorted(actions, key=lambda a: a["total_cost"])
+        best = min(actions, key=lambda a: a["total_cost"])
+
+        return {
+            "overheat_prob": overheat_prob,
+            "cause_probs": cause_probs,
+            "actions": actions,
+            "best_action": best,
+        }
+
+    def decide_with_post_evidence(self, diagnosis: dict[str, float]) -> dict[str, Any]:
+        """
+        This method will be not used, kept for reference.
         """
         if diagnosis.get("method") != "em":
             raise ValueError("Diagnosis must be provided with 'em' method.")
@@ -106,14 +158,13 @@ class ActionDecision:
         
         post = dict(evidence)
 
-        # Turn off the symptom(s) that this cause produces
         ctx = self.kg.get_cause_context(cause)   # uses causesSymptom in KG
         for kg_sym in ctx.get("symptoms", []):
             bn_sym = KG_SYMPTOM_TO_BN.get(kg_sym)
             if bn_sym is not None:
                 post[bn_sym] = 0
 
-        # Optional: also force the latent to 0 (works well if you don't keep symptom=1)
+        # force the latent to 0
         post[cause] = 0
 
         return post

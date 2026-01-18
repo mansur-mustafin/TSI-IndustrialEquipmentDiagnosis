@@ -119,7 +119,7 @@ class DiagnoseBN:
 
                 # Experimental edges
                 # ("fan_fault", "high_vibration"),
-                ("low_cooling_efficiency", "low_coolant_flow"),
+                # ("low_cooling_efficiency", "low_coolant_flow"),
                 
                 # Experimental: explicitly connect latents to symptoms
                 # ("bearing_wear_high", "high_vibration"),
@@ -272,20 +272,6 @@ class DiagnoseBN:
 
         q = infer.query(variables=["spindle_overheat"], evidence=evidence)
         return float(q.values[1])
-
-    def residual_overheat_prob_after_fix(
-        self,
-        evidence: dict[str, int],
-        cause: str,
-        method: str = "em",
-    ) -> float:
-        if method not in ("mle", "em"):
-            raise ValueError("method must be 'mle' or 'em'.")
-
-        fixed_evidence = dict(evidence)
-        fixed_evidence[cause] = 0  # assume fixed
-
-        return self.overheat_prob(fixed_evidence, method=method)
 
     def _save_model(self, path: Path) -> None:
         path = Path(path)

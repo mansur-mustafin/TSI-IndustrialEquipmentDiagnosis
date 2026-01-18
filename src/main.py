@@ -62,9 +62,9 @@ def manual_test():
     symptom_keys = ["high_vibration", "high_spindle_temp", "high_spindle_speed", "low_coolant_flow"]
     symptoms = [dict(zip(symptom_keys, values)) for values in product([0, 1], repeat=len(symptom_keys))]
 
-    symptoms = [
-        {'high_vibration': 1, 'high_spindle_temp': 1, 'high_spindle_speed': 0, 'low_coolant_flow': 1},
-    ]
+    # symptoms = [
+    #     {'high_vibration': 1, 'high_spindle_temp': 1, 'high_spindle_speed': 0, 'low_coolant_flow': 1},
+    # ]
 
     # BN
     config = DiagnoseBNConfig.from_yaml(repo_path("configs", "bn.yaml"))
@@ -88,14 +88,14 @@ def manual_test():
         # print("EM diagnosis:", json.dumps(result_em, indent=2))
 
         decision = action_decision.decide(result_em)
-        print("Decision:", json.dumps(decision, indent=2))
+        # print("Decision:", json.dumps(decision, indent=2))
 
-        for i in range(3):
+        for i in range(1):
             if decision["actions"][i]["action"] != "continue":
                 # print(json.dumps(decision["actions"][i], indent=2))
                 print(decision["actions"][i]["proc_id"], end=" ")
             else:
-                print("", "continue", end=" ")
+                print("continue", end=" ")
         print()
 
 
