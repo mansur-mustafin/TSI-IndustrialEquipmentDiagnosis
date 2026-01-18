@@ -48,43 +48,9 @@ ex:SlowDown a ex:Procedure ;
     ex:sparePartsCostEur "0"^^xsd:float ;
     ex:targetsComponent ex:Spindle .
 
-ex:affectsComponent a owl:ObjectProperty ;
-    rdfs:domain ex:Cause ;
-    rdfs:range ex:Component .
-
-ex:causesSymptom a owl:ObjectProperty ;
-    rdfs:domain ex:Cause ;
-    rdfs:range ex:Symptom .
-
 ex:effortHours a owl:DatatypeProperty ;
     rdfs:domain ex:Procedure ;
     rdfs:range xsd:float .
-
-ex:function a owl:DatatypeProperty ;
-    rdfs:domain ex:Component ;
-    rdfs:range xsd:string .
-
-ex:hasID a owl:DatatypeProperty ;
-    rdfs:domain ex:Cause,
-        ex:Component,
-        ex:Procedure,
-        ex:Symptom ;
-    rdfs:range xsd:string .
-
-ex:hasName a owl:DatatypeProperty ;
-    rdfs:domain ex:Cause,
-        ex:Component,
-        ex:Procedure,
-        ex:Symptom ;
-    rdfs:range xsd:string .
-
-ex:mitigatesCause a owl:ObjectProperty ;
-    rdfs:domain ex:Procedure ;
-    rdfs:range ex:Cause .
-
-ex:partOf a owl:ObjectProperty ;
-    rdfs:domain ex:Component ;
-    rdfs:range ex:Component .
 
 ex:riskRating a owl:DatatypeProperty ;
     rdfs:domain ex:Procedure ;
@@ -93,10 +59,6 @@ ex:riskRating a owl:DatatypeProperty ;
 ex:sparePartsCostEur a owl:DatatypeProperty ;
     rdfs:domain ex:Procedure ;
     rdfs:range xsd:float .
-
-ex:targetsComponent a owl:ObjectProperty ;
-    rdfs:domain ex:Procedure ;
-    rdfs:range ex:Component .
 
 ex:BearingWearHigh a ex:Cause ;
     ex:affectsComponent ex:Bearing ;
@@ -140,6 +102,15 @@ ex:LowLoadCondition a ex:Cause ;
     ex:hasID "K5" ;
     ex:hasName "LowLoadCondition" .
 
+ex:function a owl:DatatypeProperty,
+        owl:FunctionalProperty ;
+    rdfs:domain ex:Component ;
+    rdfs:range xsd:string .
+
+ex:partOf a owl:ObjectProperty ;
+    rdfs:domain ex:Component ;
+    rdfs:range ex:Component .
+
 ex:Bearing a ex:Component ;
     ex:function "Support rotation" ;
     ex:hasID "C5" ;
@@ -162,6 +133,22 @@ ex:HighSpindleTemp a ex:Symptom ;
     ex:hasID "S2" ;
     ex:hasName "HighSpindleTemp" .
 
+ex:affectsComponent a owl:ObjectProperty ;
+    rdfs:domain ex:Cause ;
+    rdfs:range ex:Component .
+
+ex:causesSymptom a owl:ObjectProperty ;
+    rdfs:domain ex:Cause ;
+    rdfs:range ex:Symptom .
+
+ex:mitigatesCause a owl:ObjectProperty ;
+    rdfs:domain ex:Procedure ;
+    rdfs:range ex:Cause .
+
+ex:targetsComponent a owl:ObjectProperty ;
+    rdfs:domain ex:Procedure ;
+    rdfs:range ex:Component .
+
 ex:Spindle a ex:Component ;
     ex:function "Rotate tool" ;
     ex:hasID "C1" ;
@@ -172,11 +159,88 @@ ex:CoolingSystem a ex:Component ;
     ex:hasID "C2" ;
     ex:hasName "CoolingSystem" .
 
-ex:Symptom a owl:Class .
+ex:hasID a owl:DatatypeProperty,
+        owl:FunctionalProperty ;
+    rdfs:range xsd:string .
 
-ex:Cause a owl:Class .
+ex:hasName a owl:DatatypeProperty,
+        owl:FunctionalProperty ;
+    rdfs:range xsd:string .
 
-ex:Component a owl:Class .
+ex:Symptom a owl:Class ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty ex:hasID ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty ex:hasName ] ;
+    owl:disjointWith ex:Procedure .
 
-ex:Procedure a owl:Class .
+ex:Cause a owl:Class ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:minCardinality 1 ;
+            owl:onProperty ex:affectsComponent ],
+        [ a owl:Restriction ;
+            owl:minCardinality 1 ;
+            owl:onProperty ex:causesSymptom ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty ex:hasID ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty ex:hasName ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom ex:Symptom ;
+            owl:onProperty ex:causesSymptom ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom ex:Component ;
+            owl:onProperty ex:affectsComponent ] ;
+    owl:disjointWith ex:Procedure,
+        ex:Symptom .
+
+ex:Component a owl:Class ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty ex:function ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty ex:hasID ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty ex:hasName ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom ex:Component ;
+            owl:onProperty ex:partOf ] ;
+    owl:disjointWith ex:Cause,
+        ex:Procedure,
+        ex:Symptom .
+
+ex:Procedure a owl:Class ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:minCardinality 1 ;
+            owl:onProperty ex:mitigatesCause ],
+        [ a owl:Restriction ;
+            owl:minCardinality 1 ;
+            owl:onProperty ex:targetsComponent ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom ex:Component ;
+            owl:onProperty ex:targetsComponent ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom ex:Cause ;
+            owl:onProperty ex:mitigatesCause ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty ex:hasName ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty ex:hasID ] .
 
