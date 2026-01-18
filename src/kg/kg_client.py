@@ -11,6 +11,7 @@ BN_TO_CAUSE_NAME = {
     "clogged_filter": "CloggedFilter",
     "low_cooling_efficiency": "LowCoolingEfficiency",
     "low_load_condition": "LowLoadCondition",
+    "low_cooling_effectiveness": "LowCoolingEffectiveness",
 }
 
 

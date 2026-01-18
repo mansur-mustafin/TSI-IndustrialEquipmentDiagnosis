@@ -120,7 +120,6 @@ class ActionDecision:
                     })
                     continue
 
-                
                 proc_cost = self._cost(proc)
                 post_evidence = self._post_evidence_after_fix(evidence, cause)
                 post_risk = self.bn.overheat_prob(post_evidence, method="em")

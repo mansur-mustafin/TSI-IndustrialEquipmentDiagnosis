@@ -5,7 +5,7 @@ FanFault,causesSymptom,HighSpindleTemp
 FanFault,affectsComponent,Fan
 CloggedFilter,causesSymptom,LowCoolantFlow
 CloggedFilter,affectsComponent,Filter
-LowCoolingEfficiency,causesSymptom,HighSpindleTemp
+LowCoolingEfficiency,causesSymptom,LowCoolingEffectiveness
 LowCoolingEfficiency,affectsComponent,CoolingSystem
 LowLoadCondition,causesSymptom,HighSpindleSpeed
 LowLoadCondition,affectsComponent,Spindle

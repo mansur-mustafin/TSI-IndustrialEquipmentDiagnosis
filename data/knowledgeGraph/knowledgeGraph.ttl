@@ -120,6 +120,10 @@ ex:HighSpindleSpeed a ex:Symptom ;
     ex:hasID "S4" ;
     ex:hasName "HighSpindleSpeed" .
 
+ex:HighSpindleTemp a ex:Symptom ;
+    ex:hasID "S2" ;
+    ex:hasName "HighSpindleTemp" .
+
 ex:HighVibration a ex:Symptom ;
     ex:hasID "S1" ;
     ex:hasName "HighVibration" .
@@ -128,9 +132,13 @@ ex:LowCoolantFlow a ex:Symptom ;
     ex:hasID "S3" ;
     ex:hasName "LowCoolantFlow" .
 
+ex:LowCoolingEffectiveness a ex:Symptom ;
+    ex:hasID "S5" ;
+    ex:hasName "LowCoolingEffectiveness" .
+
 ex:LowCoolingEfficiency a ex:Cause ;
     ex:affectsComponent ex:CoolingSystem ;
-    ex:causesSymptom ex:HighSpindleTemp ;
+    ex:causesSymptom ex:LowCoolingEffectiveness ;
     ex:hasID "K4" ;
     ex:hasName "LowCoolingEfficiency" .
 
@@ -157,10 +165,6 @@ ex:Filter a ex:Component ;
     ex:hasID "C4" ;
     ex:hasName "Filter" ;
     ex:partOf ex:CoolingSystem .
-
-ex:HighSpindleTemp a ex:Symptom ;
-    ex:hasID "S2" ;
-    ex:hasName "HighSpindleTemp" .
 
 ex:Spindle a ex:Component ;
     ex:function "Rotate tool" ;

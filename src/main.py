@@ -59,11 +59,11 @@ def main():
 def manual_test():
     # Find all symptoms combinations
     from itertools import product
-    symptom_keys = ["high_vibration", "high_spindle_temp", "high_spindle_speed", "low_coolant_flow"]
+    symptom_keys = ["high_vibration", "high_spindle_temp", "high_spindle_speed", "low_coolant_flow", "low_cooling_effectiveness"]
     symptoms = [dict(zip(symptom_keys, values)) for values in product([0, 1], repeat=len(symptom_keys))]
 
     # symptoms = [
-    #     {'high_vibration': 1, 'high_spindle_temp': 1, 'high_spindle_speed': 0, 'low_coolant_flow': 1},
+    #     {'high_vibration': 0, 'high_spindle_temp': 0, 'high_spindle_speed': 0, 'low_coolant_flow': 0, 'low_cooling_effectiveness': 1},
     # ]
 
     # BN

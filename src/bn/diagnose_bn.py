@@ -17,6 +17,7 @@ class DiagnoseBN:
         self.temp_hi = None
         self.flow_lo = None
         self.speed_hi = None
+        self.cool_eff_lo = None
 
         self.df = None
         self._model_mle = None
@@ -42,30 +43,36 @@ class DiagnoseBN:
 
         # Setting labels
         df["delta_temp"] = df["spindle_temp"] - df["ambient_temp"]
+        df["cooling_ratio"] = df["coolant_flow"] / (df["delta_temp"].clip(lower=0.0) + 1e-6)
 
         self.vib_hi = df["vibration_rms"].quantile(cfg.vib_hi)
         self.temp_hi = df["delta_temp"].quantile(cfg.temp_hi)
         self.flow_lo = df["coolant_flow"].quantile(cfg.flow_lo)
         self.speed_hi = df["spindle_speed"].quantile(cfg.speed_hi)
+        self.cool_eff_lo = float(df["cooling_ratio"].quantile(cfg.cool_eff_lo))
 
         df["high_vibration"] = (df["vibration_rms"] > self.vib_hi).astype(int)
         df["high_spindle_temp"] = (df["delta_temp"] > self.temp_hi).astype(int)
         df["high_spindle_speed"] = (df["spindle_speed"] >= self.speed_hi).astype(int)
         df["low_coolant_flow"] = (df["coolant_flow"] < self.flow_lo).astype(int)
+        df["low_cooling_effectiveness"] = (df["cooling_ratio"] < self.cool_eff_lo).astype(int)
 
         # Binning variables - alternative approach
         # df["high_vibration"] = pd.qcut(df["vibration_rms"], q=self.cfg.n_bins, labels=False, duplicates="drop")
         # df["high_spindle_temp"] = pd.qcut(df["delta_temp"], q=self.cfg.n_bins, labels=False, duplicates="drop")
         # df["low_coolant_flow"] = pd.qcut(df["coolant_flow"], q=self.cfg.n_bins, labels=False, duplicates="drop")
         # df["high_spindle_speed"] = pd.qcut(df["spindle_speed"], q=self.cfg.n_bins, labels=False, duplicates="drop")
+        # df["low_cooling_effectiveness"] = pd.qcut(df["cooling_ratio"], q=self.cfg.n_bins, labels=False, duplicates="drop")
 
         # self.vib_edges = pd.qcut(df["vibration_rms"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
         # self.temp_edges = pd.qcut(df["delta_temp"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
         # self.flow_edges = pd.qcut(df["coolant_flow"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
         # self.speed_edges = pd.qcut(df["spindle_speed"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
+        # self.cool_eff_edges = pd.qcut(df["cooling_ratio"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
 
         df["spindle_overheat"] = df["spindle_overheat"].astype(int)
         self.df = df
+        
 
     def _train_mle(self) -> None:
         model = DiscreteBayesianNetwork(
@@ -74,6 +81,7 @@ class DiagnoseBN:
                 ("spindle_overheat", "high_spindle_temp"),
                 ("spindle_overheat", "high_spindle_speed"),
                 ("spindle_overheat", "low_coolant_flow"),
+                ("spindle_overheat", "low_cooling_effectiveness"),
             ],
         )
 
@@ -82,7 +90,8 @@ class DiagnoseBN:
             "high_vibration",
             "high_spindle_temp", 
             "high_spindle_speed", 
-            "low_coolant_flow"
+            "low_coolant_flow",
+            "low_cooling_effectiveness",
         ]]
 
         model.fit(data_mle, estimator=MaximumLikelihoodEstimator)
@@ -111,7 +120,7 @@ class DiagnoseBN:
                 ("clogged_filter", "low_coolant_flow"),
                 ("clogged_filter", "spindle_overheat"),
 
-                ("low_cooling_efficiency", "high_spindle_temp"),
+                ("low_cooling_efficiency", "low_cooling_effectiveness"),
                 ("low_cooling_efficiency", "spindle_overheat"),
 
                 ("low_load_condition", "high_spindle_speed"),
@@ -125,21 +134,26 @@ class DiagnoseBN:
                 # ("bearing_wear_high", "high_vibration"),
                 # ("fan_fault", "high_spindle_temp"),
                 # ("clogged_filter", "low_coolant_flow"),
-                # ("low_cooling_efficiency", "high_spindle_temp"),
+                # ("low_cooling_efficiency", "low_cooling_effectiveness"),
                 # ("low_load_condition", "high_spindle_speed"),
 
-                # # Symptoms drive failure:
                 # ("high_vibration", "spindle_overheat"),
                 # ("high_spindle_temp", "spindle_overheat"),
                 # ("low_coolant_flow", "spindle_overheat"),
                 # ("high_spindle_speed", "spindle_overheat"),
+                # ("low_cooling_effectiveness", "spindle_overheat"),
             ],
             latents=set(latent_vars),
         )
 
-        data_em = self.df[
-            ["spindle_overheat", "high_vibration", "high_spindle_temp", "high_spindle_speed", "low_coolant_flow"]
-        ]
+        data_em = self.df[[
+            "spindle_overheat", 
+            "high_vibration", 
+            "high_spindle_temp", 
+            "high_spindle_speed", 
+            "low_coolant_flow", 
+            "low_cooling_effectiveness",
+        ]]
 
         em = ExpectationMaximization(model, data_em)
 
@@ -174,30 +188,33 @@ class DiagnoseBN:
         :return: A dictionary with symptom variables
         :rtype: dict[str, int]
         """
-        if self.vib_hi is None or self.temp_hi is None or self.flow_lo is None or self.speed_hi is None:
+        if self.vib_hi is None or self.temp_hi is None or self.flow_lo is None or self.speed_hi is None or self.cool_eff_lo is None:
             raise ValueError("Model thresholds are not set. Train the model first.")
 
-        high_vibration = int(raw_data["vibration_rms"] > self.vib_hi)
-        high_spindle_temp = int((raw_data["spindle_temp"] - raw_data["ambient_temp"]) > self.temp_hi)
-        low_coolant_flow = int(raw_data["coolant_flow"] < self.flow_lo)
-        high_spindle_speed = int(raw_data["spindle_speed"] >= self.speed_hi)
+        delta_temp = float(raw_data["spindle_temp"] - raw_data["ambient_temp"])
+        cooling_ratio = float(raw_data["coolant_flow"] / max(delta_temp + 1e-6, 1e-6))
 
         return {
-            "high_vibration": high_vibration,
-            "high_spindle_temp": high_spindle_temp,
-            "high_spindle_speed": high_spindle_speed,
-            "low_coolant_flow": low_coolant_flow,
+            "high_vibration": int(raw_data["vibration_rms"] > self.vib_hi),
+            "high_spindle_temp": int(delta_temp > self.temp_hi),
+            "high_spindle_speed": int(raw_data["spindle_speed"] >= self.speed_hi),
+            "low_coolant_flow": int(raw_data["coolant_flow"] < self.flow_lo),
+            "low_cooling_effectiveness": int(cooling_ratio < self.cool_eff_lo),
         }
     
     def raw2bins(self, raw_data: dict[str, float]) -> dict[str, int]:
         def digitize(val, edges):
             return int(pd.cut([val], bins=edges, labels=False, include_lowest=True)[0])
         
+        delta_temp = float(raw_data["spindle_temp"] - raw_data["ambient_temp"])
+        cooling_ratio = float(raw_data["coolant_flow"] / max(delta_temp + 1e-6, 1e-6))
+        
         return {
             "high_vibration": digitize(raw_data["vibration_rms"], self.vib_edges),
-            "high_spindle_temp": digitize(raw_data["spindle_temp"] - raw_data["ambient_temp"], self.temp_edges),
+            "high_spindle_temp": digitize(delta_temp, self.temp_edges),
             "low_coolant_flow": digitize(raw_data["coolant_flow"], self.flow_edges),
             "high_spindle_speed": digitize(raw_data["spindle_speed"], self.speed_edges),
+            "low_cooling_effectiveness": digitize(cooling_ratio, self.cool_eff_edges),
         }
 
     def diagnose(self, symptoms: dict[str, int], method: str = "mle") -> dict[str, Any]:

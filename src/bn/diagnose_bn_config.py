@@ -13,6 +13,7 @@ class DiagnoseBNConfig:
     temp_hi: float = 0.9
     flow_lo: float = 0.1
     speed_hi: float = 0.9
+    cool_eff_lo: float = 0.1
     n_bins: int = 5
 
     # --- hyperparameters
