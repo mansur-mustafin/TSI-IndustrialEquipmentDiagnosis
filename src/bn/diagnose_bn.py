@@ -7,7 +7,7 @@ from bn.diagnose_bn_config import DiagnoseBNConfig
 from pgmpy.estimators import MaximumLikelihoodEstimator, ExpectationMaximization
 from pgmpy.inference import VariableElimination
 from pgmpy.models import DiscreteBayesianNetwork
-
+from app.utils import repo_path
 
 class DiagnoseBN:
     def __init__(self, cfg: DiagnoseBNConfig, path: str = None):
@@ -24,24 +24,10 @@ class DiagnoseBN:
         self._infer_mle = None
         self._infer_em = None
 
-        # TODO: load trained model if exists
+        self._load_data()
+
         if path is not None:
-            self._load_data()
-            print("Data loaded.")
-
-            path = Path(path)
-
-            if not path.exists():
-                raise FileNotFoundError(f"Model file not found: {path}")
-
-            with path.open("rb") as f:
-                payload = pickle.load(f)
-
-            self._model_mle = payload["model_mle"]
-            self._model_em = payload["model_em"]
-
-            self._infer_mle = VariableElimination(self._model_mle)
-            self._infer_em = VariableElimination(self._model_em)
+            self._load_model(path)
 
     def _load_data(self) -> None:
         cfg = self.cfg
@@ -57,50 +43,46 @@ class DiagnoseBN:
         # Setting labels
         df["delta_temp"] = df["spindle_temp"] - df["ambient_temp"]
 
-        # self.vib_hi = df["vibration_rms"].quantile(cfg.vib_hi)
-        # self.temp_hi = df["delta_temp"].quantile(cfg.temp_hi)
-        # self.flow_lo = df["coolant_flow"].quantile(cfg.flow_lo)
-        # self.speed_hi = df["spindle_speed"].quantile(cfg.speed_hi)
+        self.vib_hi = df["vibration_rms"].quantile(cfg.vib_hi)
+        self.temp_hi = df["delta_temp"].quantile(cfg.temp_hi)
+        self.flow_lo = df["coolant_flow"].quantile(cfg.flow_lo)
+        self.speed_hi = df["spindle_speed"].quantile(cfg.speed_hi)
 
-        # df["high_vibration"] = (df["vibration_rms"] > self.vib_hi).astype(int)
-        # df["high_spindle_temp"] = (df["delta_temp"] > self.temp_hi).astype(int)
-        # df["high_spindle_speed"] = (df["spindle_speed"] >= self.speed_hi).astype(int)
-        # df["low_coolant_flow"] = (df["coolant_flow"] < self.flow_lo).astype(int)
-        # df["spindle_overheat"] = df["spindle_overheat"].astype(int)
+        df["high_vibration"] = (df["vibration_rms"] > self.vib_hi).astype(int)
+        df["high_spindle_temp"] = (df["delta_temp"] > self.temp_hi).astype(int)
+        df["high_spindle_speed"] = (df["spindle_speed"] >= self.speed_hi).astype(int)
+        df["low_coolant_flow"] = (df["coolant_flow"] < self.flow_lo).astype(int)
 
-        self.vib_bins = pd.qcut(df["vibration_rms"], q=self.cfg.n_bins, labels=False, duplicates="drop")
-        self.temp_bins = pd.qcut(df["delta_temp"], q=self.cfg.n_bins, labels=False, duplicates="drop")
-        self.flow_bins = pd.qcut(df["coolant_flow"], q=self.cfg.n_bins, labels=False, duplicates="drop")
-        self.speed_bins = pd.qcut(df["spindle_speed"], q=self.cfg.n_bins, labels=False, duplicates="drop")
+        # Binning variables - alternative approach
+        # df["high_vibration"] = pd.qcut(df["vibration_rms"], q=self.cfg.n_bins, labels=False, duplicates="drop")
+        # df["high_spindle_temp"] = pd.qcut(df["delta_temp"], q=self.cfg.n_bins, labels=False, duplicates="drop")
+        # df["low_coolant_flow"] = pd.qcut(df["coolant_flow"], q=self.cfg.n_bins, labels=False, duplicates="drop")
+        # df["high_spindle_speed"] = pd.qcut(df["spindle_speed"], q=self.cfg.n_bins, labels=False, duplicates="drop")
 
-        df["vibration_bin"] = self.vib_bins
-        df["temp_bin"] = self.temp_bins
-        df["flow_bin"] = self.flow_bins
-        df["speed_bin"] = self.speed_bins
+        # self.vib_edges = pd.qcut(df["vibration_rms"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
+        # self.temp_edges = pd.qcut(df["delta_temp"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
+        # self.flow_edges = pd.qcut(df["coolant_flow"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
+        # self.speed_edges = pd.qcut(df["spindle_speed"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
 
-        self.vib_edges = pd.qcut(df["vibration_rms"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
-        self.temp_edges = pd.qcut(df["delta_temp"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
-        self.flow_edges = pd.qcut(df["coolant_flow"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
-        self.speed_edges = pd.qcut(df["spindle_speed"], q=self.cfg.n_bins, retbins=True, duplicates="drop")[1]
-
+        df["spindle_overheat"] = df["spindle_overheat"].astype(int)
         self.df = df
 
     def _train_mle(self) -> None:
         model = DiscreteBayesianNetwork(
             ebunch=[
-                ("spindle_overheat", "vibration_bin"),
-                ("spindle_overheat", "temp_bin"),
-                ("spindle_overheat", "speed_bin"),
-                ("spindle_overheat", "flow_bin"),
+                ("spindle_overheat", "high_vibration"),
+                ("spindle_overheat", "high_spindle_temp"),
+                ("spindle_overheat", "high_spindle_speed"),
+                ("spindle_overheat", "low_coolant_flow"),
             ],
         )
 
         data_mle = self.df[[
             "spindle_overheat", 
-            "vibration_bin", 
-            "temp_bin", 
-            "speed_bin", 
-            "flow_bin"
+            "high_vibration",
+            "high_spindle_temp", 
+            "high_spindle_speed", 
+            "low_coolant_flow"
         ]]
 
         model.fit(data_mle, estimator=MaximumLikelihoodEstimator)
@@ -120,26 +102,43 @@ class DiagnoseBN:
 
         model = DiscreteBayesianNetwork(
             ebunch=[
-                ("bearing_wear_high", "vibration_bin"),
+                ("bearing_wear_high", "high_vibration"),
                 ("bearing_wear_high", "spindle_overheat"),
 
-                ("fan_fault", "temp_bin"),
+                ("fan_fault", "high_spindle_temp"),
                 ("fan_fault", "spindle_overheat"),
 
-                ("clogged_filter", "flow_bin"),
+                ("clogged_filter", "low_coolant_flow"),
                 ("clogged_filter", "spindle_overheat"),
 
-                ("low_cooling_efficiency", "temp_bin"),
+                ("low_cooling_efficiency", "high_spindle_temp"),
                 ("low_cooling_efficiency", "spindle_overheat"),
 
-                ("low_load_condition", "speed_bin"),
+                ("low_load_condition", "high_spindle_speed"),
                 ("low_load_condition", "spindle_overheat"),
+
+                # Experimental edges
+                # ("fan_fault", "high_vibration"),
+                ("low_cooling_efficiency", "low_coolant_flow"),
+                
+                # Experimental: explicitly connect latents to symptoms
+                # ("bearing_wear_high", "high_vibration"),
+                # ("fan_fault", "high_spindle_temp"),
+                # ("clogged_filter", "low_coolant_flow"),
+                # ("low_cooling_efficiency", "high_spindle_temp"),
+                # ("low_load_condition", "high_spindle_speed"),
+
+                # # Symptoms drive failure:
+                # ("high_vibration", "spindle_overheat"),
+                # ("high_spindle_temp", "spindle_overheat"),
+                # ("low_coolant_flow", "spindle_overheat"),
+                # ("high_spindle_speed", "spindle_overheat"),
             ],
             latents=set(latent_vars),
         )
 
         data_em = self.df[
-            ["spindle_overheat", "vibration_bin", "temp_bin", "speed_bin", "flow_bin"]
+            ["spindle_overheat", "high_vibration", "high_spindle_temp", "high_spindle_speed", "low_coolant_flow"]
         ]
 
         em = ExpectationMaximization(model, data_em)
@@ -159,24 +158,12 @@ class DiagnoseBN:
         self._infer_em = VariableElimination(model)
 
     def train(self, verbose: bool = False) -> None:
-        self._load_data()
-        print("Data loaded.")
         self._train_mle()
         print("MLE model fitted.")
         self._train_em(verbose=verbose)
         print("EM model fitted.")
-
-        # TODO: make this better
-        path = Path("./trained_models")
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        payload = {
-            "model_mle": self._model_mle,
-            "model_em": self._model_em,
-        }
-
-        with path.open("wb") as f:
-            pickle.dump(payload, f)
+        self._save_model(repo_path("weights", "diagnose_bn_model.pkl"))
+        print("Model saved.")
 
     def raw2symptoms(self, raw_data: dict[str, float]) -> dict[str, int]:
         """
@@ -207,10 +194,10 @@ class DiagnoseBN:
             return int(pd.cut([val], bins=edges, labels=False, include_lowest=True)[0])
         
         return {
-            "vibration_bin": digitize(raw_data["vibration_rms"], self.vib_edges),
-            "temp_bin": digitize(raw_data["spindle_temp"] - raw_data["ambient_temp"], self.temp_edges),
-            "flow_bin": digitize(raw_data["coolant_flow"], self.flow_edges),
-            "speed_bin": digitize(raw_data["spindle_speed"], self.speed_edges),
+            "high_vibration": digitize(raw_data["vibration_rms"], self.vib_edges),
+            "high_spindle_temp": digitize(raw_data["spindle_temp"] - raw_data["ambient_temp"], self.temp_edges),
+            "low_coolant_flow": digitize(raw_data["coolant_flow"], self.flow_edges),
+            "high_spindle_speed": digitize(raw_data["spindle_speed"], self.speed_edges),
         }
 
     def diagnose(self, symptoms: dict[str, int], method: str = "mle") -> dict[str, Any]:
@@ -262,12 +249,67 @@ class DiagnoseBN:
 
         return result
 
-    def diagnose_from_raw(self, raw_data: dict[str, float], method: str = "mle") -> dict[str, Any]:
+    def diagnose_from_raw(self, raw_data: dict[str, float], method: str = "mle", use_bins: bool = False) -> dict[str, Any]:
         """Run inference when raw telemetry data is given.
 
-        :param raw_data: Raw telemetry data with keys: 'vibration_rms', 'spindle_temp', 'ambient_temp', 'coolant_flow', 'spindle_speed'.
-        :param method: Inference method: 'mle' or 'em'.
+        :param dict[str, float] raw_data: Raw telemetry data with keys: 
+            'vibration_rms', 'spindle_temp', 'ambient_temp', 'coolant_flow', 'spindle_speed'.
+        :param str method: Inference method: 'mle' or 'em'.
+        :param bool use_bins: Whether to use binned variables for inference.
         """
 
-        evidence = self.raw2bins(raw_data)
+        evidence = self.raw2bins(raw_data) if use_bins else self.raw2symptoms(raw_data)
         return self.diagnose(evidence, method=method)
+
+    def overheat_prob(self, evidence: dict[str, int], method: str = "em") -> float:
+        if method == "em":
+            infer = self._infer_em
+        else:
+            infer = self._infer_mle
+
+        if infer is None:
+            raise ValueError("Inference model not available. Train/load first.")
+
+        q = infer.query(variables=["spindle_overheat"], evidence=evidence)
+        return float(q.values[1])
+
+    def residual_overheat_prob_after_fix(
+        self,
+        evidence: dict[str, int],
+        cause: str,
+        method: str = "em",
+    ) -> float:
+        if method not in ("mle", "em"):
+            raise ValueError("method must be 'mle' or 'em'.")
+
+        fixed_evidence = dict(evidence)
+        fixed_evidence[cause] = 0  # assume fixed
+
+        return self.overheat_prob(fixed_evidence, method=method)
+
+    def _save_model(self, path: Path) -> None:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        payload = {
+            "model_mle": self._model_mle,
+            "model_em": self._model_em,
+        }
+
+        with open(path, "wb") as f:
+            pickle.dump(payload, f)
+
+    def _load_model(self, path: Path) -> None:
+        path = Path(path)
+
+        if not path.exists():
+            raise FileNotFoundError(f"Model file not found: {path}")
+
+        with path.open("rb") as f:
+            payload = pickle.load(f)
+
+        self._model_mle = payload["model_mle"]
+        self._model_em = payload["model_em"]
+
+        self._infer_mle = VariableElimination(self._model_mle)
+        self._infer_em = VariableElimination(self._model_em)
