@@ -16,6 +16,15 @@ BN_TO_CAUSE_NAME = {
 
 class KGClient:
 
+    """Client for querying the RDF knowledge graph.
+
+    This client loads a Turtle (.ttl) knowledge graph and provides helpers to
+    retrieve:
+    - maintenance procedures that mitigate a BN-inferred cause
+    - context for a cause (affected components and related symptoms)
+    - explanations/details for a specific procedure
+    """
+
     def __init__(self, cfg: KGClientConfig):
         self.graph = Graph()
         self.graph.parse(cfg.ttl_path, format="turtle")
@@ -28,13 +37,20 @@ class KGClient:
             raise ValueError(f"Unknown BN cause name: {bn_cause!r}")
 
     def get_procedures_for_cause(self, bn_cause: str) -> list[dict[str, Any]]:
-        """
-        Given a BN cause variable returns all procedures that mitigate that cause.
+        """Return all procedures that mitigate a given BN cause.
 
-        :param bn_cause: A BN cause variable name (e.g. 'fan_fault')
-        :type bn_cause: str
-        :return: list of procedures
-        :rtype: list[dict[str, Any]]
+        Args:
+            bn_cause: BN cause variable name (e.g., ``"fan_fault"``).
+
+        Returns (str):
+            A list of procedure dicts with keys:
+                - proc_uri
+                - proc_id
+                - proc_name
+                - effort_h
+                - spare_parts_cost_eur
+                - risk_rating
+                - target_component
         """
         cause_local = self._bn_cause_to_kg_name(bn_cause)
 
@@ -69,13 +85,17 @@ class KGClient:
         return procedures
 
     def get_cause_context(self, bn_cause: str) -> dict[str, Any]:
-        """
-        Given a BN cause variable, get its context:
-        
-        :param bn_cause: A BN cause variable name (e.g. 'fan_fault')
-        :type bn_cause: str
-        :return: Dictionary with cause context
-        :rtype: dict[str, Any]
+        """Get context for a BN cause (affected components and symptoms).
+
+        Args:
+            bn_cause: BN cause variable name (e.g., ``"fan_fault"``).
+
+        Returns:
+            A dictionary with keys:
+                - bn_cause
+                - cause_name (KG local name)
+                - components (sorted list)
+                - symptoms (sorted list)
         """
         cause_local = self._bn_cause_to_kg_name(bn_cause)
 
@@ -112,13 +132,20 @@ class KGClient:
         }
 
     def get_procedure_explanation(self, proc_id: str) -> dict[str, Any]:
-        """
-        Given a procedure ID, get its explanation.
+        """Get an explanation/details record for a procedure.
 
-        :param proc_id: Procedure ID (e.g. 'P1')
-        :type proc_id: str
-        :return: Dictionary with procedure explanation
-        :rtype: dict[str, Any]
+        Args:
+            proc_id: Procedure ID / KG local name (e.g., ``"P1"``).
+
+        Returns:
+            A dictionary with keys:
+                - proc_id
+                - proc_name
+                - target_component
+                - cause_name
+                - effort_h
+                - spare_parts_cost_eur
+                - symptoms (sorted list)
         """
         query = f"""
         PREFIX ex: <http://example.org/cnc#>

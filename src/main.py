@@ -1,16 +1,16 @@
 import json
-import pandas as pd
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+from app.utils import repo_path
 from bn.diagnose_bn import DiagnoseBN
 from bn.diagnose_bn_config import DiagnoseBNConfig
 from decision.action_decision import ActionDecision
 from decision.action_decision_config import ActionDecisionConfig
 from kg.kg_client import KGClient
 from kg.kg_client_config import KGClientConfig
-from app.utils import repo_path
-
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 
 def main():
@@ -24,9 +24,9 @@ def main():
 
     # BN
     config = DiagnoseBNConfig.from_yaml(repo_path("configs", "bn.yaml"))
-    model = DiagnoseBN(config, path=repo_path("weights", "diagnose_bn_model.pkl"))
-    # model = DiagnoseBN(config)
-    # model.train(True)
+    # model = DiagnoseBN(config, path=repo_path("weights", "diagnose_bn_model.pkl"))
+    model = DiagnoseBN(config)
+    model.train(True)
     print("Model trained.\n")
 
     result_mle = model.diagnose_from_raw(raw_data, method="mle")
@@ -39,7 +39,7 @@ def main():
     kg_cfg = KGClientConfig.from_yaml(repo_path("configs", "kg.yaml"))
     kg_client = KGClient(kg_cfg)
 
-    # # Action
+    # Action
     decision_cfg = ActionDecisionConfig.from_yaml(repo_path("configs", "decision.yaml"))
     action_decision = ActionDecision(kg_client, decision_cfg)
 
@@ -56,55 +56,11 @@ def main():
         print("Cause context:", json.dumps(cause_context, indent=2))
 
 
-def manual_test():
-    # Find all symptoms combinations
-    from itertools import product
-    symptom_keys = ["high_vibration", "high_spindle_temp", "high_spindle_speed", "low_coolant_flow"]
-    symptoms = [dict(zip(symptom_keys, values)) for values in product([0, 1], repeat=len(symptom_keys))]
-
-    # symptoms = [
-    #     {'high_vibration': 1, 'high_spindle_temp': 1, 'high_spindle_speed': 0, 'low_coolant_flow': 1},
-    # ]
-
-    # BN
-    config = DiagnoseBNConfig.from_yaml(repo_path("configs", "bn.yaml"))
-    # model = DiagnoseBN(config, path=repo_path("weights", "diagnose_bn_model.pkl"))
-    model = DiagnoseBN(config)
-    model.train(True)
-    print("Model trained.\n")
-
-    # KG
-    kg_cfg = KGClientConfig.from_yaml(repo_path("configs", "kg.yaml"))
-    kg_client = KGClient(kg_cfg)
-
-    # # Action
-    decision_cfg = ActionDecisionConfig.from_yaml(repo_path("configs", "decision.yaml"))
-    action_decision = ActionDecision(kg_client, model, decision_cfg)
-
-    for symptom in symptoms:
-        print(symptom, end=" -> ")
-        
-        result_em = model.diagnose(symptom, method="em")
-        # print("EM diagnosis:", json.dumps(result_em, indent=2))
-
-        decision = action_decision.decide(result_em)
-        # print("Decision:", json.dumps(decision, indent=2))
-
-        for i in range(1):
-            if decision["actions"][i]["action"] != "continue":
-                # print(json.dumps(decision["actions"][i], indent=2))
-                print(decision["actions"][i]["proc_id"], end=" ")
-            else:
-                print("continue", end=" ")
-        print()
-
-
 def evaluate():
 
     def action_accuracy(y_true, y_pred):
         return sum(t == p for t, p in zip(y_true, y_pred)) / len(y_true)
     
-
     def action_confusion(y_true, y_pred):
 
         labels = [
@@ -127,7 +83,6 @@ def evaluate():
             xticks_rotation=45,
             ax=ax
         )
-
 
         plt.title("Confusion Matrix")
         plt.tight_layout()
@@ -158,7 +113,6 @@ def evaluate():
         """
         r = regret(y_true, y_pred, cost_map)
         return sum(r) / len(r)
-    
     
     def severity_error(y_true, y_pred, severity_map):
         """
@@ -197,56 +151,40 @@ def evaluate():
             return 0
         else:
             return sum(errors) / y_pred.count("continue")
-    
 
 
-    procedures_df = pd.read_csv("./../data/actions/procedures.csv", parse_dates=["procedure_timestamp","selected_sensor_timestamp"])
+    procedures_df = pd.read_csv("./../data/actions/procedures_man.csv", parse_dates=["procedure_timestamp","selected_sensor_timestamp"])
 
     # BN
     config = DiagnoseBNConfig.from_yaml(repo_path("configs", "bn.yaml"))
     model = DiagnoseBN(config, path=repo_path("weights", "diagnose_bn_model.pkl"))
-    # model.train()
-    print("Model trained.\n")
 
     # KG
     kg_cfg = KGClientConfig.from_yaml(repo_path("configs", "kg.yaml"))
     kg_client = KGClient(kg_cfg)
-    decision_cfg = ActionDecisionConfig.from_yaml(repo_path("configs", "decision.yaml"))
 
+    # Action
+    decision_cfg = ActionDecisionConfig.from_yaml(repo_path("configs", "decision.yaml"))
+    action_decision = ActionDecision(kg_client, decision_cfg)
+    
     model_actions = []
 
     for _, row in procedures_df.iterrows():
 
         raw_data = {
-            "vibration_rms": row["vibration_rms"],
-            "spindle_temp": row["spindle_temp"],
-            "ambient_temp": row["ambient_temp"],
-            "coolant_flow": row["coolant_flow"],
-            "spindle_speed": row["spindle_speed"],
+            "high_vibration": row["high_vibration"],
+            "high_spindle_temp": row["high_spindle_temp"],
+            "low_coolant_flow": row["low_coolant_flow"],
+            "high_spindle_speed": row["high_spindle_speed"],
         }
 
-        result_em = model.diagnose_from_raw(raw_data, method="em")
-
-        
-        # Action
-        action_decision = ActionDecision(kg_client, decision_cfg)
+        result_em = model.diagnose(raw_data, method="em")
 
         decision = action_decision.decide(result_em)
 
         if decision["best_action"]["action"] != "continue":
-
-            if row["proc_id"] != decision["best_action"]["proc_id"]:
-                if row["proc_id"] == "CleanFilter" and decision["best_action"]["proc_id"] == "ReplaceBearing":
-                    print(row['selected_sensor_timestamp'])
-                    print("True procedure:", row["proc_id"])
-                    print("Model action:", json.dumps(decision, indent=2))
-
             proc_id = decision["best_action"]["proc_id"]
             model_actions.append(proc_id)
-            procedure = kg_client.get_procedure_explanation(proc_id)
-
-            cause = decision["best_action"]["cause"]
-            cause_context = kg_client.get_cause_context(cause)
         else:
             model_actions.append("continue")
     
@@ -271,7 +209,6 @@ def evaluate():
         "ReplaceBearing": 3,
     }
 
-
     print("Accuracy:", action_accuracy(y_true, model_actions))
     print("Mean cost:", mean_cost(model_actions, ACTION_COST))
     print("Mean regret:", mean_regret(y_true, model_actions, ACTION_COST))
@@ -279,12 +216,10 @@ def evaluate():
     print("False continue rate:", false_continue_rate(y_true, model_actions))
     print("Mean severity error:", severity_error(y_true, model_actions, SEVERITY))
 
-
     action_confusion(y_true=y_true, y_pred=model_actions)
 
 
 if __name__ == "__main__":
-    # main()
+    main()
     # print("-----------------------------Evaluation of the decision system-----------------------------")
-    # evaluate()
-    manual_test()
+    evaluate()

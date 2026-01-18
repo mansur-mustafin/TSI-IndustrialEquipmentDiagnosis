@@ -11,16 +11,15 @@ from kg.kg_client import KGClient
 from kg.kg_client_config import KGClientConfig
 
 
-def get_trained_model():
+def get_trained_model() -> DiagnoseBN:
     if st.session_state.model is None:
         config = DiagnoseBNConfig.from_yaml(repo_path("configs", "bn.yaml"))
-        model = DiagnoseBN(config)
-        model.train()
+        model = DiagnoseBN(config, path=repo_path("weights", "diagnose_bn_model.pkl"))
         st.session_state.model = model
     return st.session_state.model
 
 
-def get_kg_client():
+def get_kg_client() -> KGClient:
     if st.session_state.kg_client is None:
         kg_cfg = KGClientConfig.from_yaml(repo_path("configs", "kg.yaml"))
         st.session_state.kg_client = KGClient(kg_cfg)

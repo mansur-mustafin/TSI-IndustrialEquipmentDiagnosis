@@ -1,15 +1,26 @@
-from pathlib import Path
 import pickle
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from app.utils import repo_path
 from bn.diagnose_bn_config import DiagnoseBNConfig
 from pgmpy.estimators import MaximumLikelihoodEstimator, ExpectationMaximization
 from pgmpy.inference import VariableElimination
 from pgmpy.models import DiscreteBayesianNetwork
-from app.utils import repo_path
+
 
 class DiagnoseBN:
+    """This class loads telemetry + labels, derives binary symptom variables using
+    quantile thresholds, and trains two Bayesian Network variants:
+
+    - MLE model: fully observed BN over the target and symptoms.
+    - EM model: BN with latent cause variables learned with EM.
+
+    After training (or loading a saved model), run inference from either
+    pre-binarized symptom evidence or raw telemetry.
+    """
+
     def __init__(self, cfg: DiagnoseBNConfig, path: str = None):
         self.cfg = cfg
 
@@ -128,7 +139,6 @@ class DiagnoseBN:
                 # ("low_cooling_efficiency", "high_spindle_temp"),
                 # ("low_load_condition", "high_spindle_speed"),
 
-                # # Symptoms drive failure:
                 # ("high_vibration", "spindle_overheat"),
                 # ("high_spindle_temp", "spindle_overheat"),
                 # ("low_coolant_flow", "spindle_overheat"),
@@ -158,6 +168,11 @@ class DiagnoseBN:
         self._infer_em = VariableElimination(model)
 
     def train(self, verbose: bool = False) -> None:
+        """Train both MLE and EM models and save them to disk.
+
+        Args:
+            verbose (bool): If True, show EM progress.
+        """
         self._train_mle()
         print("MLE model fitted.")
         self._train_em(verbose=verbose)
@@ -166,13 +181,21 @@ class DiagnoseBN:
         print("Model saved.")
 
     def raw2symptoms(self, raw_data: dict[str, float]) -> dict[str, int]:
-        """
-        Convert raw telemetry data to symptom variables.
-        
-        :param raw_data: A dictionary with keys: 'vibration_rms', 'spindle_temp', 'ambient_temp', 'coolant_flow', 'spindle_speed'
-        :type raw_data: dict[str, float]
-        :return: A dictionary with symptom variables
-        :rtype: dict[str, int]
+        """Convert raw telemetry into binary symptom evidence.
+
+        The thresholds are computed from training data (quantiles) during
+        initialization.
+
+        Args:
+            raw_data: Raw telemetry with keys:
+                - vibration_rms
+                - spindle_temp
+                - ambient_temp
+                - coolant_flow
+                - spindle_speed
+
+        Returns:
+            Binary (0/1) symptom evidence keyed by symptom name.
         """
         if self.vib_hi is None or self.temp_hi is None or self.flow_lo is None or self.speed_hi is None:
             raise ValueError("Model thresholds are not set. Train the model first.")
@@ -188,8 +211,16 @@ class DiagnoseBN:
             "high_spindle_speed": high_spindle_speed,
             "low_coolant_flow": low_coolant_flow,
         }
-    
+
     def raw2bins(self, raw_data: dict[str, float]) -> dict[str, int]:
+        """Convert raw telemetry into discretized (multi-bin) symptom evidence.
+
+        Args:
+            raw_data (dict[str, float]): Raw telemetry with the same keys as ``raw2symptoms``.
+
+        Returns:
+            Discrete (0..n-1) symptom evidence keyed by symptom name.
+        """
         def digitize(val, edges):
             return int(pd.cut([val], bins=edges, labels=False, include_lowest=True)[0])
         
@@ -201,15 +232,20 @@ class DiagnoseBN:
         }
 
     def diagnose(self, symptoms: dict[str, int], method: str = "mle") -> dict[str, Any]:
-        """
-        Run inference for single telemetry data.
-        
-        :param symptoms: Binary symptom variables (0/1) keyed by symptom name.
-        :type symptoms: dict[str, int]
-        :param method: Inference method: 'mle' or 'em'
-        :type method: str
-        :return: Dictionary with diagnosis results
-        :rtype: dict[str, float]
+        """Run inference given symptom evidence.
+
+        Args:
+            symptoms (dict[str, int]): Symptom evidence keyed by symptom name. For the default
+                binarized setup these should be 0/1 ints.
+            method (str): Inference method. Use ``"mle"`` for the fully observed model
+                or ``"em"`` for the latent-cause model.
+
+        Returns:
+            A result dict containing:
+                - method
+                - evidence
+                - overheat_prob
+            If ``method == "em"``, also includes ``cause_probs``.
         """
 
         if method == "mle" and self._infer_mle is None:
@@ -250,18 +286,33 @@ class DiagnoseBN:
         return result
 
     def diagnose_from_raw(self, raw_data: dict[str, float], method: str = "mle", use_bins: bool = False) -> dict[str, Any]:
-        """Run inference when raw telemetry data is given.
+        """Run inference from raw telemetry.
 
-        :param dict[str, float] raw_data: Raw telemetry data with keys: 
-            'vibration_rms', 'spindle_temp', 'ambient_temp', 'coolant_flow', 'spindle_speed'.
-        :param str method: Inference method: 'mle' or 'em'.
-        :param bool use_bins: Whether to use binned variables for inference.
+        Args:
+            raw_data (dict[str, float]): Raw telemetry with keys:
+                - vibration_rms
+                - spindle_temp
+                - ambient_temp
+                - coolant_flow
+                - spindle_speed
+            method (str): Inference method: ``"mle"`` or ``"em"``.
+            use_bins (bool): If True, uses ``raw2bins`` (discretized features) instead
+                of ``raw2symptoms`` (binary features).
         """
 
         evidence = self.raw2bins(raw_data) if use_bins else self.raw2symptoms(raw_data)
         return self.diagnose(evidence, method=method)
 
     def overheat_prob(self, evidence: dict[str, int], method: str = "em") -> float:
+        """Compute P(spindle_overheat=1 | evidence).
+
+        Args:
+            evidence (dict[str, int]): Evidence dictionary keyed by variable name.
+            method (str): Inference method: ``"mle"`` or ``"em"``.
+
+        Returns:
+            Probability of spindle overheat being 1.
+        """
         if method == "em":
             infer = self._infer_em
         else:

@@ -7,7 +7,7 @@ from kg.kg_client import KGClient
 
 class ActionDecision:
 
-    def __init__(self, kg_client: KGClient, bn: DiagnoseBN, decision_config: ActionDecisionConfig):
+    def __init__(self, kg_client: KGClient, decision_config: ActionDecisionConfig, bn: DiagnoseBN | None = None) -> None:
         self.kg = kg_client
         self.cfg = decision_config
         self.bn = bn
@@ -19,14 +19,24 @@ class ActionDecision:
         return float(labor + parts + risk_cost)
     
     def decide(self, diagnosis: dict[str, float]) -> dict[str, Any]:
-        """
-        Docstring for decide
-        
-        :param self: Description
-        :param diagnosis: Description
-        :type diagnosis: dict[str, float]
-        :return: Description
-        :rtype: dict[str, Any]
+        """Choose the lowest expected-cost action given a BN diagnosis.
+
+        Costs are computed using the configured economic parameters:
+
+        - Baseline (continue): ``P(overheat | evidence) * fail_cost``
+        - For normal procedures: ``procedure_cost + (1 - P(cause | evidence)) * P(overheat | evidence) * fail_cost``
+        - For ``SlowDown``: ``slowdown_lost_cost + slowdown_risk_factor * P(overheat | evidence) * fail_cost``
+
+        Args:
+            diagnosis (dict[str, float]): Diagnosis dictionary produced by the BN inference.
+                - overheat_prob: float
+                - cause_probs: mapping of BN cause name into probability
+
+        Returns (dict[str, Any]):
+            A dictionary with:
+                - overheat_prob: float
+                - cause_probs: mapping[str, float]
+                - best_action: the minimum-cost action dict
         """
         if diagnosis.get("method") != "em":
             raise ValueError("Diagnosis must be provided with 'em' method.")
@@ -72,7 +82,8 @@ class ActionDecision:
         return {
             "overheat_prob": overheat_prob,
             "cause_probs": cause_probs,
-            "actions": actions,
+            # For debugging/explanation purposes:
+            # "actions": actions,
             "best_action": best,
         }
 
