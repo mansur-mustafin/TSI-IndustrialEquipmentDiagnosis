@@ -15,17 +15,18 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 def main():
     raw_data = {
-        "vibration_rms": 0.893,
-        "spindle_temp": 68.26,
-        "ambient_temp": 19.73,
-        "coolant_flow": 0.612,
-        "spindle_speed": 2600.0,
+        "vibration_rms": 1.177,
+        "spindle_temp": 72.04,
+        "ambient_temp": 21.72,
+        "coolant_flow": 0.384,
+        "spindle_speed": 2800,
     }
 
     # BN
     config = DiagnoseBNConfig.from_yaml(repo_path("configs", "bn.yaml"))
-    model = DiagnoseBN(config)
-    model.train()
+    model = DiagnoseBN(config, path=repo_path("src", "trained_models"))
+    # model = DiagnoseBN(config)
+    # model.train(True)
     print("Model trained.\n")
 
     result_mle = model.diagnose_from_raw(raw_data, method="mle")
@@ -38,7 +39,7 @@ def main():
     kg_cfg = KGClientConfig.from_yaml(repo_path("configs", "kg.yaml"))
     kg_client = KGClient(kg_cfg)
 
-    # Action
+    # # Action
     decision_cfg = ActionDecisionConfig.from_yaml(repo_path("configs", "decision.yaml"))
     action_decision = ActionDecision(kg_client, decision_cfg)
 
@@ -160,14 +161,17 @@ def evaluate():
 
     # BN
     config = DiagnoseBNConfig.from_yaml("./../configs/bn.yaml")
-    model = DiagnoseBN(config)
-    model.train()
+    model = DiagnoseBN(config, path=repo_path("src", "trained_models"))
+    # model.train()
     print("Model trained.\n")
+
+    # KG
+    kg_cfg = KGClientConfig.from_yaml("./../configs/kg.yaml")
+    kg_client = KGClient(kg_cfg)
+    decision_cfg = ActionDecisionConfig.from_yaml("./../configs/decision.yaml")
 
     model_actions = []
 
-    
-    
     for _, row in procedures_df.iterrows():
 
         raw_data = {
@@ -180,20 +184,21 @@ def evaluate():
 
         result_em = model.diagnose_from_raw(raw_data, method="em")
 
-        # KG
-        kg_cfg = KGClientConfig.from_yaml("./../configs/kg.yaml")
-        kg_client = KGClient(kg_cfg)
-
+        
         # Action
-        decision_cfg = ActionDecisionConfig.from_yaml("./../configs/decision.yaml")
         action_decision = ActionDecision(kg_client, decision_cfg)
 
         decision = action_decision.decide(result_em)
 
         if decision["best_action"]["action"] != "continue":
 
+            if row["proc_id"] != decision["best_action"]["proc_id"]:
+                if row["proc_id"] == "CleanFilter" and decision["best_action"]["proc_id"] == "ReplaceBearing":
+                    print(row['selected_sensor_timestamp'])
+                    print("True procedure:", row["proc_id"])
+                    print("Model action:", json.dumps(decision, indent=2))
+
             proc_id = decision["best_action"]["proc_id"]
-            print(proc_id)
             model_actions.append(proc_id)
             procedure = kg_client.get_procedure_explanation(proc_id)
 
@@ -206,24 +211,22 @@ def evaluate():
     y_true = procedures_df["proc_id"].tolist()
 
     ACTION_COST = {
-    "ReplaceBearing": 600,
-    "RepairFan": 150,
-    "CleanFilter": 50,
-    "FlushCoolant": 90,
-    "SlowDown": 200,
-    "continue": 0,
+        "ReplaceBearing": 600,
+        "RepairFan": 150,
+        "CleanFilter": 50,
+        "FlushCoolant": 90,
+        "SlowDown": 200,
+        "continue": 0,
     }
 
     SEVERITY = {
-    "continue": 0,
-    "SlowDown": 0.5,
-    "CleanFilter": 1,
-    "FlushCoolant": 2,
-    "RepairFan": 2,
-    "ReplaceBearing": 3,
+        "continue": 0,
+        "SlowDown": 0.5,
+        "CleanFilter": 1,
+        "FlushCoolant": 2,
+        "RepairFan": 2,
+        "ReplaceBearing": 3,
     }
-    
-    
 
 
     print("Accuracy:", action_accuracy(y_true, model_actions))
@@ -234,12 +237,10 @@ def evaluate():
     print("Mean severity error:", severity_error(y_true, model_actions, SEVERITY))
 
 
-
-
     action_confusion(y_true=y_true, y_pred=model_actions)
 
 
 if __name__ == "__main__":
-    main()
-    print("-----------------------------Evaluation of the decision system-----------------------------")
+    # main()
+    # print("-----------------------------Evaluation of the decision system-----------------------------")
     evaluate()

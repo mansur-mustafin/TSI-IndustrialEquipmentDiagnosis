@@ -64,11 +64,12 @@ class ActionDecision:
                     "target_component": proc["target_component"],
                 })
 
+        actions = sorted(actions, key=lambda a: a["total_cost"])
         best = min(actions, key=lambda a: a["total_cost"])
 
         return {
             "overheat_prob": overheat_prob,
             "cause_probs": cause_probs,
-            # "actions": actions,
+            "actions": actions,
             "best_action": best,
         }

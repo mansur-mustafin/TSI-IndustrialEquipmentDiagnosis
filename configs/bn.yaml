@@ -8,6 +8,7 @@ thresholds:
   temp_hi: 0.9
   flow_lo: 0.1
   speed_hi: 0.9
+  n_bins: 5
 
 em:
   em_max_iter: 1000
