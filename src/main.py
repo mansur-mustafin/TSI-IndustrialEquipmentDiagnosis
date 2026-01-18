@@ -8,6 +8,7 @@ from decision.action_decision import ActionDecision
 from decision.action_decision_config import ActionDecisionConfig
 from kg.kg_client import KGClient
 from kg.kg_client_config import KGClientConfig
+from app.utils import repo_path
 
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
@@ -22,7 +23,7 @@ def main():
     }
 
     # BN
-    config = DiagnoseBNConfig.from_yaml("./../configs/bn.yaml")
+    config = DiagnoseBNConfig.from_yaml(repo_path("configs", "bn.yaml"))
     model = DiagnoseBN(config)
     model.train()
     print("Model trained.\n")
@@ -34,11 +35,11 @@ def main():
     print("EM diagnosis:", json.dumps(result_em, indent=2))
 
     # KG
-    kg_cfg = KGClientConfig.from_yaml("./../configs/kg.yaml")
+    kg_cfg = KGClientConfig.from_yaml(repo_path("configs", "kg.yaml"))
     kg_client = KGClient(kg_cfg)
 
     # Action
-    decision_cfg = ActionDecisionConfig.from_yaml("./../configs/decision.yaml")
+    decision_cfg = ActionDecisionConfig.from_yaml(repo_path("configs", "decision.yaml"))
     action_decision = ActionDecision(kg_client, decision_cfg)
 
     decision = action_decision.decide(result_em)
@@ -192,6 +193,7 @@ def evaluate():
         if decision["best_action"]["action"] != "continue":
 
             proc_id = decision["best_action"]["proc_id"]
+            print(proc_id)
             model_actions.append(proc_id)
             procedure = kg_client.get_procedure_explanation(proc_id)
 

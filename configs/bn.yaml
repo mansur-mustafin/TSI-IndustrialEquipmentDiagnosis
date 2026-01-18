@@ -10,6 +10,6 @@ thresholds:
   speed_hi: 0.9
 
 em:
-  em_max_iter: 100
-  em_atol: 1.0e-4
+  em_max_iter: 1000
+  em_atol: 1.0e-8
   em_seed: 42

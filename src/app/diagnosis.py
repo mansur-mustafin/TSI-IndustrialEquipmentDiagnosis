@@ -2,7 +2,7 @@ from typing import Any
 
 import streamlit as st
 from app.explanation import build_text_explanation
-from app.utils import round_dict
+from app.utils import round_dict, repo_path
 from bn.diagnose_bn import DiagnoseBN
 from bn.diagnose_bn_config import DiagnoseBNConfig
 from decision.action_decision import ActionDecision
@@ -13,7 +13,7 @@ from kg.kg_client_config import KGClientConfig
 
 def get_trained_model():
     if st.session_state.model is None:
-        config = DiagnoseBNConfig.from_yaml("./../configs/bn.yaml")
+        config = DiagnoseBNConfig.from_yaml(repo_path("configs", "bn.yaml"))
         model = DiagnoseBN(config)
         model.train()
         st.session_state.model = model
@@ -22,13 +22,13 @@ def get_trained_model():
 
 def get_kg_client():
     if st.session_state.kg_client is None:
-        kg_cfg = KGClientConfig.from_yaml("./../configs/kg.yaml")
+        kg_cfg = KGClientConfig.from_yaml(repo_path("configs", "kg.yaml"))
         st.session_state.kg_client = KGClient(kg_cfg)
     return st.session_state.kg_client
 
 
 def get_action_decision(kg_client: KGClient) -> ActionDecision:
-    decision_cfg = ActionDecisionConfig.from_yaml("./../configs/decision.yaml")
+    decision_cfg = ActionDecisionConfig.from_yaml(repo_path("configs", "decision.yaml"))
     return ActionDecision(kg_client, decision_cfg)
 
 

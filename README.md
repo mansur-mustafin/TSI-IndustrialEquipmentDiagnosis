@@ -2,7 +2,7 @@
 
 ## How to run
 Streamlit app:
-* `streamlit run app.py`
+* `streamlit run src/machine_diagnosis.py`
 
 Ollama setup:
 * Just once: `sudo docker exec -it ollama14 ollama pull llama3.2`

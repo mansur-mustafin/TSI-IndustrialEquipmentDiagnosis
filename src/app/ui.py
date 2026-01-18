@@ -50,7 +50,7 @@ def render_input_section() -> tuple[str, dict[str, Any] | None, dict[str, int] |
             )
             coolant_flow = st.number_input(
                 "Coolant flow",
-                value=10.0,
+                value=1.0,
                 step=0.5,
                 format="%.2f",
             )
