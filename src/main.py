@@ -56,6 +56,44 @@ def main():
         print("Cause context:", json.dumps(cause_context, indent=2))
 
 
+def manual_test():
+    # Find all symptoms combinations
+    from itertools import product
+    symptom_keys = ["high_vibration", "high_spindle_temp", "high_spindle_speed", "low_coolant_flow"]
+    symptoms = [dict(zip(symptom_keys, values)) for values in product([0, 1, 2, 3, 4], repeat=len(symptom_keys))]
+
+    # BN
+    config = DiagnoseBNConfig.from_yaml(repo_path("configs", "bn.yaml"))
+    model = DiagnoseBN(config, path=repo_path("weights", "diagnose_bn_model.pkl"))
+    print("Model trained.\n")
+
+    # KG
+    kg_cfg = KGClientConfig.from_yaml(repo_path("configs", "kg.yaml"))
+    kg_client = KGClient(kg_cfg)
+
+    # # Action
+    decision_cfg = ActionDecisionConfig.from_yaml(repo_path("configs", "decision.yaml"))
+    action_decision = ActionDecision(kg_client, decision_cfg)
+
+    for symptom in symptoms:
+        try:
+            result_em = model.diagnose(symptom, method="em")
+            # print("EM diagnosis:", json.dumps(result_em, indent=2))
+
+            decision = action_decision.decide(result_em)
+            # print("Decision:", json.dumps(decision, indent=2))
+            print(symptom, end=" -> ")
+            for i in range(1):
+                if decision["actions"][i]["action"] != "continue":
+                    # print(json.dumps(decision["actions"][i], indent=2))
+                    print(decision["actions"][i]["proc_id"], end=" ")
+                else:
+                    print("continue", end=" ")
+            print()
+        except Exception as e:
+            pass
+
+
 def evaluate():
 
     def action_accuracy(y_true, y_pred):
@@ -221,5 +259,5 @@ def evaluate():
 
 if __name__ == "__main__":
     main()
-    # print("-----------------------------Evaluation of the decision system-----------------------------")
     evaluate()
+    # manual_test()
